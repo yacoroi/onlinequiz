@@ -100,6 +100,20 @@ export default function Home() {
           </p>
         </div>
 
+        <div className="max-w-md mx-auto mb-8">
+          <Link href="/quiz/join">
+            <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow cursor-pointer">
+              <div className="text-center">
+                <div className="bg-blue-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-white text-2xl">→</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Oyuna Katıl</h3>
+                <p className="text-gray-600">PIN kodu ile bir oyuna katıl</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-lg shadow-lg p-2 mb-4">
             <div className="flex rounded-md overflow-hidden">
