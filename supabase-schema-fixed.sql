@@ -3,6 +3,7 @@
 -- Eski politikaları sil
 DROP POLICY IF EXISTS "Game sessions are viewable by participants and hosts" ON game_sessions;
 DROP POLICY IF EXISTS "Participants can view session participants" ON game_participants;
+DROP POLICY IF EXISTS "Users can join game sessions" ON game_participants;
 DROP POLICY IF EXISTS "Users can view answers in their sessions" ON game_answers;
 
 -- Düzeltilmiş politikalar
@@ -19,10 +20,15 @@ CREATE POLICY "Participants can view session participants" ON game_participants
   FOR SELECT USING (
     user_id = auth.uid() OR
     EXISTS (
-      SELECT 1 FROM game_sessions 
-      WHERE game_sessions.id = game_participants.session_id 
+      SELECT 1 FROM game_sessions
+      WHERE game_sessions.id = game_participants.session_id
       AND game_sessions.host_id = auth.uid()
     )
+  );
+
+CREATE POLICY "Users can join game sessions" ON game_participants
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id OR user_id IS NULL
   );
 
 CREATE POLICY "Users can view answers in their sessions" ON game_answers
