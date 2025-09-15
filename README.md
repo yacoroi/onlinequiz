@@ -2,7 +2,22 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Environment variables
+
+Create a `.env.local` file based on the provided `.env.example` and fill in your Supabase project credentials:
+
+```bash
+cp .env.example .env.local
+```
+
+The application requires the following values:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### Development server
+
+After setting up the environment variables, run the development server:
 
 ```bash
 npm run dev
