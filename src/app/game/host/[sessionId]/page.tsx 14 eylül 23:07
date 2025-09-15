@@ -1,0 +1,489 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+interface GameSession {
+  id: string
+  quiz_id: string
+  game_pin: string
+  status: string
+  current_question_index: number
+  current_question_started_at: string
+  quiz: {
+    title: string
+    questions: Question[]
+  }
+}
+
+interface Question {
+  id: string
+  question_text: string
+  time_limit: number
+  points: number
+  order_index: number
+  question_options: QuestionOption[]
+}
+
+interface QuestionOption {
+  id: string
+  option_text: string
+  is_correct: boolean
+  color: string
+  order_index: number
+}
+
+interface Participant {
+  id: string
+  nickname: string
+  total_score: number
+  is_active: boolean
+}
+
+export default function HostGame({ params }: { params: { sessionId: string } }) {
+  const { user } = useAuth()
+  const router = useRouter()
+  const [session, setSession] = useState<GameSession | null>(null)
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [showResults, setShowResults] = useState(false)
+  const [questionResults, setQuestionResults] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/')
+      return
+    }
+
+    fetchSessionData()
+    
+    // Subscribe to real-time updates
+    const participantsSubscription = supabase
+      .channel('participants')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'game_participants',
+        filter: `session_id=eq.${params.sessionId}`
+      }, () => {
+        fetchParticipants()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(participantsSubscription)
+    }
+  }, [user, params.sessionId, router])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    
+    if (session?.status === 'started' && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            showQuestionResults()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [timeLeft, session?.status])
+
+  const fetchSessionData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('game_sessions')
+        .select(`
+          *,
+          quiz:quizzes (
+            title,
+            questions (
+              id,
+              question_text,
+              time_limit,
+              points,
+              order_index,
+              question_options (
+                id,
+                option_text,
+                is_correct,
+                color,
+                order_index
+              )
+            )
+          )
+        `)
+        .eq('id', params.sessionId)
+        .eq('host_id', user?.id)
+        .single()
+
+      if (error) throw error
+
+      // Sort questions and options
+      data.quiz.questions.sort((a: Question, b: Question) => a.order_index - b.order_index)
+      data.quiz.questions.forEach((q: Question) => {
+        q.question_options.sort((a: QuestionOption, b: QuestionOption) => a.order_index - b.order_index)
+      })
+
+      setSession(data)
+      await fetchParticipants()
+    } catch (error: any) {
+      setError(error.message)
+      router.push('/quiz/my-quizzes')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchParticipants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('game_participants')
+        .select('*')
+        .eq('session_id', params.sessionId)
+        .order('total_score', { ascending: false })
+
+      if (error) throw error
+      setParticipants(data)
+    } catch (error: any) {
+      console.error('Error fetching participants:', error)
+    }
+  }
+
+  const startGame = async () => {
+    try {
+      const { error } = await supabase
+        .from('game_sessions')
+        .update({ 
+          status: 'started',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', params.sessionId)
+
+      if (error) throw error
+
+      setSession(prev => prev ? { ...prev, status: 'started' } : null)
+      showNextQuestion()
+    } catch (error: any) {
+      setError(error.message)
+    }
+  }
+
+  const showNextQuestion = async () => {
+    if (!session) return
+
+    const nextIndex = session.current_question_index
+    const nextQuestion = session.quiz.questions[nextIndex]
+    
+    if (!nextQuestion) {
+      endGame()
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('game_sessions')
+        .update({
+          current_question_index: nextIndex,
+          current_question_started_at: new Date().toISOString()
+        })
+        .eq('id', params.sessionId)
+
+      if (error) throw error
+
+      setSession(prev => prev ? {
+        ...prev,
+        current_question_index: nextIndex,
+        current_question_started_at: new Date().toISOString()
+      } : null)
+      
+      setTimeLeft(nextQuestion.time_limit)
+      setShowResults(false)
+      setQuestionResults([])
+    } catch (error: any) {
+      setError(error.message)
+    }
+  }
+
+  const showQuestionResults = async () => {
+    if (!session) return
+
+    try {
+      const { data, error } = await supabase
+        .from('game_answers')
+        .select(`
+          *,
+          participant:game_participants (
+            nickname,
+            total_score
+          ),
+          question_option:question_options (
+            option_text,
+            is_correct,
+            color
+          )
+        `)
+        .eq('session_id', params.sessionId)
+        .eq('question_id', session.quiz.questions[session.current_question_index].id)
+
+      if (error) throw error
+
+      setQuestionResults(data)
+      setShowResults(true)
+
+      // Update participant scores
+      await fetchParticipants()
+    } catch (error: any) {
+      setError(error.message)
+    }
+  }
+
+  const endGame = async () => {
+    try {
+      const { error } = await supabase
+        .from('game_sessions')
+        .update({
+          status: 'finished',
+          finished_at: new Date().toISOString()
+        })
+        .eq('id', params.sessionId)
+
+      if (error) throw error
+
+      setSession(prev => prev ? { ...prev, status: 'finished' } : null)
+    } catch (error: any) {
+      setError(error.message)
+    }
+  }
+
+  const getColorClass = (color: string) => {
+    switch (color) {
+      case 'red': return 'bg-red-500 text-white'
+      case 'blue': return 'bg-blue-500 text-white'
+      case 'yellow': return 'bg-yellow-500 text-white'
+      case 'green': return 'bg-green-500 text-white'
+      default: return 'bg-gray-500 text-white'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-2xl">Yükleniyor...</div>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl text-red-600">Oyun bulunamadı</div>
+      </div>
+    )
+  }
+
+  const currentQuestion = session.quiz.questions[session.current_question_index]
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3">
+          {error}
+        </div>
+      )}
+
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">{session.quiz.title}</h1>
+          <div className="text-2xl text-purple-100 mb-4">
+            PIN: <span className="font-mono bg-white/20 px-4 py-2 rounded">{session.game_pin}</span>
+          </div>
+          <div className="text-lg text-purple-100">
+            Katılımcı Sayısı: {participants.filter(p => p.is_active).length}
+          </div>
+        </div>
+
+        {/* Waiting Room */}
+        {session.status === 'waiting' && (
+          <div className="text-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto mb-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                Oyuncular Katılıyor...
+              </h2>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                {participants.map((participant) => (
+                  <div
+                    key={participant.id}
+                    className="bg-blue-100 rounded-lg p-4 text-center"
+                  >
+                    <div className="font-medium text-blue-800">
+                      {participant.nickname}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={startGame}
+                disabled={participants.length === 0}
+                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors"
+              >
+                Oyunu Başlat ({session.quiz.questions.length} Soru)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active Question */}
+        {session.status === 'started' && currentQuestion && !showResults && (
+          <div className="text-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
+              <div className="flex justify-between items-center mb-6">
+                <div className="text-lg font-medium text-gray-600">
+                  Soru {session.current_question_index + 1} / {session.quiz.questions.length}
+                </div>
+                <div className="text-3xl font-bold text-red-600">
+                  {timeLeft}s
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-800 mb-8">
+                {currentQuestion.question_text}
+              </h2>
+
+              <div className="grid grid-cols-2 gap-6">
+                {currentQuestion.question_options.map((option, index) => (
+                  <div
+                    key={option.id}
+                    className={`${getColorClass(option.color)} p-6 rounded-lg`}
+                  >
+                    <div className="text-xl font-bold">
+                      {option.option_text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Question Results */}
+        {showResults && currentQuestion && (
+          <div className="text-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto mb-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">Sonuçlar</h2>
+
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                {currentQuestion.question_options.map((option) => {
+                  const answerCount = questionResults.filter(r => r.question_option?.id === option.id).length
+                  const isCorrect = option.is_correct
+                  
+                  return (
+                    <div
+                      key={option.id}
+                      className={`${getColorClass(option.color)} p-6 rounded-lg relative ${
+                        isCorrect ? 'ring-4 ring-yellow-400' : ''
+                      }`}
+                    >
+                      <div className="text-xl font-bold mb-2">
+                        {option.option_text}
+                        {isCorrect && ' ✓'}
+                      </div>
+                      <div className="text-lg">
+                        {answerCount} cevap
+                      </div>
+                      {isCorrect && (
+                        <div className="absolute top-2 right-2 bg-yellow-400 text-black rounded-full w-8 h-8 flex items-center justify-center">
+                          ✓
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                {session.current_question_index < session.quiz.questions.length - 1 ? (
+                  <button
+                    onClick={showNextQuestion}
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    Sonraki Soru
+                  </button>
+                ) : (
+                  <button
+                    onClick={endGame}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    Oyunu Bitir
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Game Finished */}
+        {session.status === 'finished' && (
+          <div className="text-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold text-gray-800 mb-8">
+                🏆 Oyun Bitti!
+              </h2>
+
+              <div className="space-y-4">
+                {participants.slice(0, 10).map((participant, index) => (
+                  <div
+                    key={participant.id}
+                    className={`flex justify-between items-center p-4 rounded-lg ${
+                      index === 0 ? 'bg-yellow-100 border-2 border-yellow-400' :
+                      index === 1 ? 'bg-gray-100' :
+                      index === 2 ? 'bg-orange-100' :
+                      'bg-blue-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                        index === 0 ? 'bg-yellow-400 text-white' :
+                        index === 1 ? 'bg-gray-400 text-white' :
+                        index === 2 ? 'bg-orange-400 text-white' :
+                        'bg-blue-400 text-white'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div className="font-medium">{participant.nickname}</div>
+                    </div>
+                    <div className="font-bold text-lg">
+                      {participant.total_score} puan
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8">
+                <button
+                  onClick={() => router.push('/quiz/my-quizzes')}
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                >
+                  Quiz'lerime Dön
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,206 @@
+'use client'
+
+import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+
+export default function JoinGame() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const [gamePin, setGamePin] = useState('')
+  const [nickname, setNickname] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const joinGame = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      console.log('Searching for game with PIN:', gamePin.trim())
+      
+      // Find game session by PIN
+      const { data: session, error: sessionError } = await supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('game_pin', gamePin.trim())
+        .eq('status', 'waiting')
+        .single()
+
+      console.log('Session search result:', { session, sessionError })
+
+      if (sessionError) {
+        console.error('Session error:', sessionError)
+        if (sessionError.code === 'PGRST116') {
+          throw new Error('Geçersiz oyun PIN\'i veya oyun başlamış')
+        }
+        throw sessionError
+      }
+
+      // Check if user already joined
+      const { data: existingParticipant } = await supabase
+        .from('game_participants')
+        .select('*')
+        .eq('session_id', session.id)
+        .eq('user_id', user?.id)
+        .single()
+
+      if (existingParticipant) {
+        router.push(`/game/play/${session.id}`)
+        return
+      }
+
+      // Join the game
+      console.log('Attempting to join game with:', {
+        session_id: session.id,
+        user_id: user?.id,
+        nickname: nickname.trim() || user?.email?.split('@')[0] || 'Oyuncu'
+      })
+
+      const { error: joinError } = await supabase
+        .from('game_participants')
+        .insert([
+          {
+            session_id: session.id,
+            user_id: user?.id,
+            nickname: nickname.trim() || user?.email?.split('@')[0] || 'Oyuncu'
+          }
+        ])
+
+      console.log('Join result:', { joinError })
+
+      if (joinError) {
+        console.error('Join error:', joinError)
+        throw joinError
+      }
+
+      console.log('Successfully joined, redirecting to:', `/game/play/${session.id}`)
+      router.push(`/game/play/${session.id}`)
+    } catch (error: any) {
+      console.error('Overall error:', error)
+      setError(error.message || 'Bilinmeyen bir hata oluştu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Giriş Gerekli</h2>
+          <p className="text-gray-600 mb-4">Oyuna katılmak için giriş yapmalısınız.</p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded transition-colors"
+          >
+            Ana Sayfa
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600">
+      <nav className="bg-white shadow-md p-4">
+        <div className="container mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-purple-600">Oyuna Katıl</h1>
+          <button
+            onClick={() => router.push('/')}
+            className="text-gray-600 hover:text-gray-800"
+          >
+            Ana Sayfa
+          </button>
+        </div>
+      </nav>
+
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-md mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                Oyuna Katıl
+              </h2>
+              <p className="text-gray-600">
+                Host'tan aldığınız PIN kodunu girin
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={joinGame}>
+              <div className="mb-6">
+                <label htmlFor="gamePin" className="block text-sm font-medium text-gray-700 mb-2">
+                  Oyun PIN Kodu *
+                </label>
+                <input
+                  type="text"
+                  id="gamePin"
+                  value={gamePin}
+                  onChange={(e) => setGamePin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full px-4 py-3 text-2xl text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 tracking-wider"
+                  placeholder="123456"
+                  maxLength={6}
+                  required
+                />
+              </div>
+
+              <div className="mb-6">
+                <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-2">
+                  Takma Ad (İsteğe bağlı)
+                </label>
+                <input
+                  type="text"
+                  id="nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder={user.email?.split('@')[0] || 'Oyuncu adınız'}
+                  maxLength={20}
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Boş bırakırsanız: {user.email?.split('@')[0] || 'Oyuncu'}
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || gamePin.length < 6}
+                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors"
+              >
+                {loading ? 'Katılınıyor...' : 'Oyuna Katıl'}
+              </button>
+            </form>
+
+            <div className="mt-8 text-center">
+              <div className="text-sm text-gray-500">
+                PIN kodunuz yok mu?
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                Host'tan 6 haneli PIN kodunu isteyin
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 bg-white/10 backdrop-blur rounded-lg p-6 text-white">
+            <h3 className="font-bold mb-2">Nasıl Oynanır?</h3>
+            <ul className="text-sm space-y-1 opacity-90">
+              <li>• Host'tan PIN kodunu alın</li>
+              <li>• PIN kodunu girin ve oyuna katılın</li>
+              <li>• Host oyunu başlatmasını bekleyin</li>
+              <li>• Soruları okuyun ve doğru cevabı seçin</li>
+              <li>• Hızlı cevap verin ve puanı kaptın!</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
