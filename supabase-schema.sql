@@ -185,7 +185,9 @@ CREATE POLICY "Participants can view session participants" ON game_participants
   );
 
 CREATE POLICY "Users can join game sessions" ON game_participants
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id OR user_id IS NULL
+  );
 
 -- Cevap politikaları
 CREATE POLICY "Users can view answers in their sessions" ON game_answers
