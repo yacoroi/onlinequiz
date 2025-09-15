@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS question_options (
   question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
   option_text TEXT NOT NULL,
   is_correct BOOLEAN DEFAULT false,
-  color TEXT DEFAULT 'blue', -- red, blue, yellow, green (Kahoot tarzı renkler)
+  color TEXT DEFAULT 'blue', -- red, blue, yellow, green (Online Quiz tarzı renkler)
   order_index INTEGER NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

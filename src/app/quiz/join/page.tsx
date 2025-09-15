@@ -56,30 +56,32 @@ export default function JoinGame() {
 
       console.log('Found waiting session:', session)
 
-      // Check if user already joined
-      const { data: existingParticipant, error: participantCheckError } = await supabase
-        .from('game_participants')
-        .select('*')
-        .eq('session_id', session.id)
-        .eq('user_id', user?.id)
-        .single()
+      // Check if user already joined (only for authenticated users)
+      if (user) {
+        const { data: existingParticipant, error: participantCheckError } = await supabase
+          .from('game_participants')
+          .select('*')
+          .eq('session_id', session.id)
+          .eq('user_id', user.id)
+          .single()
 
-      if (participantCheckError && participantCheckError.code !== 'PGRST116') {
-        console.error('Error checking existing participant:', participantCheckError)
-        throw new Error('Katılımcı kontrolü sırasında hata: ' + participantCheckError.message)
-      }
+        if (participantCheckError && participantCheckError.code !== 'PGRST116') {
+          console.error('Error checking existing participant:', participantCheckError)
+          throw new Error('Katılımcı kontrolü sırasında hata: ' + participantCheckError.message)
+        }
 
-      if (existingParticipant) {
-        console.log('User already joined, redirecting...')
-        router.push(`/game/play/${session.id}`)
-        return
+        if (existingParticipant) {
+          console.log('User already joined, redirecting...')
+          router.push(`/game/play/${session.id}`)
+          return
+        }
       }
 
       // Join the game
-      const participantNickname = nickname.trim() || user?.email?.split('@')[0] || 'Oyuncu'
+      const participantNickname = nickname.trim() || (user?.email?.split('@')[0]) || 'Anonim Oyuncu'
       console.log('Attempting to join game with:', {
         session_id: session.id,
-        user_id: user?.id,
+        user_id: user?.id || null,
         nickname: participantNickname
       })
 
@@ -88,7 +90,7 @@ export default function JoinGame() {
         .insert([
           {
             session_id: session.id,
-            user_id: user?.id,
+            user_id: user?.id || null,
             nickname: participantNickname
           }
         ])
@@ -102,6 +104,11 @@ export default function JoinGame() {
         throw new Error('Oyuna katılım hatası: ' + joinError.message)
       }
 
+      // For anonymous users, save participant ID to localStorage
+      if (!user && newParticipant) {
+        localStorage.setItem(`participant_${session.id}`, newParticipant.id)
+      }
+
       console.log('Successfully joined, redirecting to:', `/game/play/${session.id}`)
       router.push(`/game/play/${session.id}`)
     } catch (error: any) {
@@ -112,22 +119,6 @@ export default function JoinGame() {
     }
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Giriş Gerekli</h2>
-          <p className="text-gray-600 mb-4">Oyuna katılmak için giriş yapmalısınız.</p>
-          <button
-            onClick={() => router.push('/')}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded transition-colors"
-          >
-            Ana Sayfa
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600">
@@ -180,7 +171,7 @@ export default function JoinGame() {
 
               <div className="mb-6">
                 <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-2">
-                  Takma Ad (İsteğe bağlı)
+                  {user ? 'Takma Ad (İsteğe bağlı)' : 'Oyuncu Adınız *'}
                 </label>
                 <input
                   type="text"
@@ -188,17 +179,21 @@ export default function JoinGame() {
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder={user.email?.split('@')[0] || 'Oyuncu adınız'}
+                  placeholder={user?.email?.split('@')[0] || 'Oyuncu adınızı girin'}
                   maxLength={20}
+                  required={!user}
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Boş bırakırsanız: {user.email?.split('@')[0] || 'Oyuncu'}
+                  {user 
+                    ? `Boş bırakırsanız: ${user.email?.split('@')[0] || 'Oyuncu'}`
+                    : 'Bu isim diğer oyuncular tarafından görülecek'
+                  }
                 </p>
               </div>
 
               <button
                 type="submit"
-                disabled={loading || gamePin.length < 6}
+                disabled={loading || gamePin.length < 6 || (!user && !nickname.trim())}
                 className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors"
               >
                 {loading ? 'Katılınıyor...' : 'Oyuna Katıl'}

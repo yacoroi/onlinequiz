@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Kurtarma dosyaları
+*eylül*
+*eyl\303\274l*

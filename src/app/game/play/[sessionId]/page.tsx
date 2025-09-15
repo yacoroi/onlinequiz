@@ -56,11 +56,6 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
   const [showLeaderboard, setShowLeaderboard] = useState(false)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/quiz/join')
-      return
-    }
-
     fetchGameData()
 
     // Subscribe to real-time updates
@@ -110,16 +105,22 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
   useEffect(() => {
     let interval: NodeJS.Timeout
 
-    if (session?.status === 'started' && timeLeft > 0 && !hasAnswered) {
+    if (session?.status === 'started' && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft(prev => prev - 1)
+        setTimeLeft(prev => {
+          if (prev <= 1 && hasAnswered && selectedAnswer) {
+            // Süre bitti ve cevap verilmişti - puanı şimdi güncelle
+            updateScoreAfterTimeUp()
+          }
+          return prev - 1
+        })
       }, 1000)
     }
 
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [timeLeft, session?.status, hasAnswered])
+  }, [timeLeft, session?.status, hasAnswered, selectedAnswer])
 
   const fetchGameData = async () => {
     try {
@@ -136,15 +137,36 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       if (sessionError) throw sessionError
       setSession(sessionData)
 
-      // Get participant info
-      const { data: participantData, error: participantError } = await supabase
-        .from('game_participants')
-        .select('*')
-        .eq('session_id', sessionId)
-        .eq('user_id', user?.id)
-        .single()
+      // Get participant info - for authenticated users by user_id, for anonymous by session storage
+      let participantData = null
+      let participantError = null
 
-      if (participantError) {
+      if (user) {
+        // Authenticated user - find by user_id
+        const result = await supabase
+          .from('game_participants')
+          .select('*')
+          .eq('session_id', sessionId)
+          .eq('user_id', user.id)
+          .single()
+        participantData = result.data
+        participantError = result.error
+      } else {
+        // Anonymous user - check if we have a participant ID in localStorage
+        const anonymousParticipantId = localStorage.getItem(`participant_${sessionId}`)
+        if (anonymousParticipantId) {
+          const result = await supabase
+            .from('game_participants')
+            .select('*')
+            .eq('id', anonymousParticipantId)
+            .eq('session_id', sessionId)
+            .single()
+          participantData = result.data
+          participantError = result.error
+        }
+      }
+
+      if (participantError || !participantData) {
         router.push('/quiz/join')
         return
       }
@@ -188,7 +210,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       if (error) throw error
 
       // Sort options by order_index
-      data.question_options.sort((a: QuestionOption, b: QuestionOption) => a.order_index - b.order_index)
+      data.question_options.sort((a: any, b: any) => a.order_index - b.order_index)
       setCurrentQuestion(data)
       setTimeLeft(data.time_limit)
 
@@ -229,7 +251,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       if (error) throw error
 
       // Sort options by order_index
-      data.question_options.sort((a: QuestionOption, b: QuestionOption) => a.order_index - b.order_index)
+      data.question_options.sort((a: any, b: any) => a.order_index - b.order_index)
       setCurrentQuestion(data)
       setTimeLeft(data.time_limit)
 
@@ -280,14 +302,8 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     try {
       const selectedOption = currentQuestion.question_options.find(opt => opt.id === optionId)
       const isCorrect = selectedOption?.is_correct || false
-      
-      // Calculate points based on time and correctness
-      let points = 0
-      if (isCorrect) {
-        const timeBonus = Math.max(0, (timeLeft / currentQuestion.time_limit) * 0.5) // 50% time bonus
-        points = Math.round(currentQuestion.points * (0.5 + timeBonus))
-      }
 
+      // Sadece cevabı kaydet, puanı henüz hesaplama
       const { error } = await supabase
         .from('game_answers')
         .insert([
@@ -297,12 +313,46 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
             question_id: currentQuestion.id,
             selected_option_id: optionId,
             time_taken: (currentQuestion.time_limit - timeLeft) * 1000,
-            points_earned: points,
+            points_earned: 0, // Puanı süre bittikten sonra hesaplayacağız
             is_correct: isCorrect
           }
         ])
 
       if (error) throw error
+
+      // Puanı hemen güncelleme, sadece cevabı kaydet
+    } catch (error: any) {
+      setError(error.message)
+      setHasAnswered(false)
+      setSelectedAnswer(null)
+    }
+  }
+
+  const updateScoreAfterTimeUp = async () => {
+    if (!currentQuestion || !participant || !selectedAnswer) return
+
+    try {
+      const selectedOption = currentQuestion.question_options.find(opt => opt.id === selectedAnswer)
+      const isCorrect = selectedOption?.is_correct || false
+      
+      // Calculate points based on time and correctness
+      let points = 0
+      if (isCorrect) {
+        const timeBonus = Math.max(0, (timeLeft / currentQuestion.time_limit) * 0.5) // 50% time bonus
+        points = Math.round(currentQuestion.points * (0.5 + timeBonus))
+      }
+
+      // Update the answer record with calculated points
+      const { error: answerUpdateError } = await supabase
+        .from('game_answers')
+        .update({
+          points_earned: points
+        })
+        .eq('session_id', sessionId)
+        .eq('participant_id', participant.id)
+        .eq('question_id', currentQuestion.id)
+
+      if (answerUpdateError) throw answerUpdateError
 
       // Update participant's total score
       const { error: updateError } = await supabase
@@ -316,9 +366,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
       setParticipant(prev => prev ? { ...prev, total_score: prev.total_score + points } : null)
     } catch (error: any) {
-      setError(error.message)
-      setHasAnswered(false)
-      setSelectedAnswer(null)
+      console.error('Error updating score after time up:', error)
     }
   }
 
@@ -413,11 +461,42 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
               {hasAnswered ? (
                 <div className="text-center py-8">
-                  <div className="text-2xl font-bold text-green-600 mb-4">
-                    Cevabın Alındı! ✓
+                  {timeLeft > 0 ? (
+                    <>
+                      <div className="text-2xl font-bold text-green-600 mb-4">
+                        Cevabın Alındı! ✓
+                      </div>
+                      <div className="text-gray-600">
+                        Süre bitmesini bekliyoruz...
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-blue-600 mb-4">
+                        Süre Bitti!
+                      </div>
+                      {currentQuestion.question_options.find(opt => opt.id === selectedAnswer)?.is_correct ? (
+                        <div className="text-xl text-green-600 font-bold">
+                          Doğru Cevap! 🎉
+                        </div>
+                      ) : (
+                        <div className="text-xl text-red-600 font-bold">
+                          Yanlış Cevap 😔
+                        </div>
+                      )}
+                      <div className="text-gray-600 mt-2">
+                        Sonraki soruyu bekliyoruz...
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : timeLeft <= 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-2xl font-bold text-red-600 mb-4">
+                    Süre Bitti!
                   </div>
                   <div className="text-gray-600">
-                    Diğer oyuncuları bekliyoruz...
+                    Cevap veremdin...
                   </div>
                 </div>
               ) : (

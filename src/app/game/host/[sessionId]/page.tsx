@@ -185,14 +185,30 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
         .from('game_sessions')
         .update({ 
           status: 'started',
-          started_at: new Date().toISOString()
+          started_at: new Date().toISOString(),
+          current_question_index: 0,
+          current_question_started_at: new Date().toISOString()
         })
         .eq('id', sessionId)
 
       if (error) throw error
 
-      setSession(prev => prev ? { ...prev, status: 'started' } : null)
-      showNextQuestion()
+      const firstQuestion = session?.quiz.questions[0]
+      if (!firstQuestion) {
+        endGame()
+        return
+      }
+
+      setSession(prev => prev ? { 
+        ...prev, 
+        status: 'started',
+        current_question_index: 0,
+        current_question_started_at: new Date().toISOString()
+      } : null)
+      
+      setTimeLeft(firstQuestion.time_limit)
+      setShowResults(false)
+      setQuestionResults([])
     } catch (error: any) {
       setError(error.message)
     }
@@ -201,7 +217,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
   const showNextQuestion = async () => {
     if (!session) return
 
-    const nextIndex = session.current_question_index
+    const nextIndex = session.current_question_index + 1
     const nextQuestion = session.quiz.questions[nextIndex]
     
     if (!nextQuestion) {
@@ -428,7 +444,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
 
               <div className="grid grid-cols-2 gap-6 mb-8">
                 {currentQuestion.question_options.map((option) => {
-                  const answerCount = questionResults.filter(r => r.question_option?.id === option.id).length
+                  const answerCount = questionResults.filter(r => r.selected_option_id === option.id).length
                   const isCorrect = option.is_correct
                   
                   return (
