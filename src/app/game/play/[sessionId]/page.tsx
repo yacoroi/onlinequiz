@@ -546,7 +546,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                         {p.id === participant?.id && ' (Sen)'}
                       </div>
                     </div>
-                    <div className="font-bold text-lg">
+                    <div className="font-bold text-lg text-black">
                       {p.total_score} puan
                     </div>
                   </div>
