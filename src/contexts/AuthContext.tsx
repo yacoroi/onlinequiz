@@ -25,33 +25,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+    
+    // Set timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth initialization timeout')
+        setLoading(false)
+      }
+    }, 10000) // 10 second timeout
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (!mounted) return
+        
+        if (error) {
+          console.error('Auth session error:', error)
+          setLoading(false)
+          return
+        }
+        
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+        clearTimeout(timeout)
+      })
+      .catch((error) => {
+        if (!mounted) return
+        console.error('Auth session error:', error)
+        setLoading(false)
+        clearTimeout(timeout)
+      })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return
+        
         setSession(session)
         setUser(session?.user ?? null)
         
         if (event === 'SIGNED_IN' && session?.user) {
-          // Create or update user profile
-          await supabase
-            .from('profiles')
-            .upsert({
-              id: session.user.id,
-              email: session.user.email,
-              updated_at: new Date().toISOString(),
-            })
+          try {
+            // Create or update user profile
+            await supabase
+              .from('profiles')
+              .upsert({
+                id: session.user.id,
+                email: session.user.email,
+                updated_at: new Date().toISOString(),
+              })
+          } catch (error) {
+            console.error('Profile update error:', error)
+          }
         }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
