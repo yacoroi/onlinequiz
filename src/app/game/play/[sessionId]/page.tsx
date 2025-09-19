@@ -94,7 +94,11 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         schema: 'public',
         table: 'game_participants',
         filter: `session_id=eq.${sessionId}`
-      }, () => {
+      }, (payload) => {
+        // Update current participant's score if it changed
+        if (payload.new && payload.new.id === participant?.id) {
+          setParticipant(prev => prev ? { ...prev, total_score: payload.new.total_score } : null)
+        }
         fetchLeaderboard()
       })
       .subscribe()
@@ -111,16 +115,17 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     if (session?.status === 'started' && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
-          if (prev <= 1 && hasAnswered && earnedPoints > 0) {
-            // Süre bitti, kazanılan puanı göster ve participant skorunu güncelle
+          const newTimeLeft = prev - 0.1 // 100ms azalış
+          if (newTimeLeft <= 0 && hasAnswered && earnedPoints > 0) {
+            // Süre bitti, sadece kazanılan puanı göster (puan zaten veritabanında kayıtlı)
             setShowEarnedPoints(true)
-            setParticipant(prevParticipant => 
-              prevParticipant ? { ...prevParticipant, total_score: prevParticipant.total_score + earnedPoints } : null
-            )
+            // Participant skorunu manuel refresh et
+            refreshParticipantScore()
+            return 0
           }
-          return prev - 1
+          return Math.max(0, newTimeLeft)
         })
-      }, 1000)
+      }, 100) // 100ms intervals for smooth countdown
     }
 
     return () => {
@@ -323,26 +328,66 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     }
   }
 
+  const refreshParticipantScore = async () => {
+    if (!participant) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('game_participants')
+        .select('*')
+        .eq('id', participant.id)
+        .single()
+
+      if (error) throw error
+      setParticipant(data)
+    } catch (error: any) {
+      console.error('Error refreshing participant score:', error)
+    }
+  }
+
   const submitAnswer = async (optionId: string) => {
     if (hasAnswered || !currentQuestion || !participant) return
 
+    // Immediately update UI state to prevent multiple submissions
     setSelectedAnswer(optionId)
     setHasAnswered(true)
 
-    try {
+    // Run database operations in background without blocking timer
+    setTimeout(async () => {
+      try {
       const selectedOption = currentQuestion.question_options.find(opt => opt.id === optionId)
       const isCorrect = selectedOption?.is_correct || false
 
-      // Calculate points based on current time left
+      // Calculate points based on precise millisecond timing
       let points = 0
+      let timeElapsedMs = 0
+      
+      // Calculate elapsed time first (needed for both points and time_taken)
+      if (session?.current_question_started_at) {
+        const startTime = new Date(session.current_question_started_at).getTime()
+        timeElapsedMs = Date.now() - startTime
+      } else {
+        timeElapsedMs = (currentQuestion.time_limit - timeLeft) * 1000
+      }
+      
       if (isCorrect) {
         const maxPoints = currentQuestion.points
         const minPoints = Math.floor(maxPoints / 2)
-        const timeElapsed = currentQuestion.time_limit - timeLeft
-        const pointsRange = maxPoints - minPoints
-        const pointReductionPerSecond = pointsRange / currentQuestion.time_limit
-        const totalPointReduction = timeElapsed * pointReductionPerSecond
-        points = Math.max(minPoints, Math.round(maxPoints - totalPointReduction))
+        
+        if (session?.current_question_started_at) {
+          const questionDurationMs = currentQuestion.time_limit * 1000
+          const pointsRange = maxPoints - minPoints
+          const pointReductionPerMs = pointsRange / questionDurationMs
+          const totalPointReduction = timeElapsedMs * pointReductionPerMs
+          points = Math.max(minPoints, Math.round(maxPoints - totalPointReduction))
+        } else {
+          // Fallback to current timeLeft calculation
+          const timeElapsed = currentQuestion.time_limit - timeLeft
+          const pointsRange = maxPoints - minPoints
+          const pointReductionPerSecond = pointsRange / currentQuestion.time_limit
+          const totalPointReduction = timeElapsed * pointReductionPerSecond
+          points = Math.max(minPoints, Math.round(maxPoints - totalPointReduction))
+        }
       }
 
       // Save answer with calculated points
@@ -354,7 +399,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
             participant_id: participant.id,
             question_id: currentQuestion.id,
             selected_option_id: optionId,
-            time_taken: (currentQuestion.time_limit - timeLeft) * 1000,
+            time_taken: timeElapsedMs,
             points_earned: points,
             is_correct: isCorrect
           }
@@ -372,13 +417,14 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
       if (updateError) throw updateError
 
-      // Store earned points but don't update UI score yet
-      setEarnedPoints(points)
-    } catch (error: any) {
-      setError(error.message)
-      setHasAnswered(false)
-      setSelectedAnswer(null)
-    }
+        // Store earned points but don't update UI score yet
+        setEarnedPoints(points)
+      } catch (error: any) {
+        setError(error.message)
+        setHasAnswered(false)
+        setSelectedAnswer(null)
+      }
+    }, 0) // Execute immediately but asynchronously
   }
 
 
@@ -463,7 +509,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                   Soru {(session?.current_question_index || 0) + 1}
                 </div>
                 <div className="text-3xl font-bold text-red-600">
-                  {timeLeft}s
+                  {Math.ceil(timeLeft)}s
                 </div>
               </div>
 
