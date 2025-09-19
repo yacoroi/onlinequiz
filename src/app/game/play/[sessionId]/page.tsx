@@ -85,6 +85,8 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
           setShowLeaderboard(false)
           setEarnedPoints(0)
           setShowEarnedPoints(false)
+          // Yeni soru başladığında participant skorunu güncelle
+          refreshParticipantScore()
         } else if (newSession.status === 'finished') {
           fetchLeaderboard()
           setShowLeaderboard(true)
@@ -129,10 +131,10 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
           if (!mounted) return prev
           const newTimeLeft = prev - 1 // 1s azalış (host ile senkron)
           if (newTimeLeft <= 0) {
-            if (hasAnswered && earnedPoints > 0) {
-              // Süre bitti, kazanılan puanı göster
+            if (hasAnswered) {
+              // Süre bitti, sonuçları göster
               setShowEarnedPoints(true)
-              // Participant skorunu manuel refresh et
+              // Participant skorunu manuel refresh et (gerçek skoru getir)
               refreshParticipantScore()
             }
             return 0
@@ -423,14 +425,10 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
       if (updateError) throw updateError
 
-      // Immediately store earned points and update local participant state
+      // Store earned points but don't show them yet (prevents spoilers)
       setEarnedPoints(points)
-      setParticipant(prev => prev ? { ...prev, total_score: prev.total_score + points } : null)
-      
-      // Show earned points immediately if correct
-      if (isCorrect && points > 0) {
-        setShowEarnedPoints(true)
-      }
+      // Don't update local participant score immediately to prevent spoilers
+      // Score will be updated when time runs out
       
     } catch (error: any) {
       console.error('Submit answer error:', error)
@@ -517,7 +515,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                 <div className="text-center py-8">
                   {timeLeft > 0 ? (
                     <>
-                      <div className="text-2xl font-bold text-green-600 mb-4">
+                      <div className="text-2xl font-bold text-blue-600 mb-4">
                         Cevabın Alındı! ✓
                       </div>
                       <div className="text-black">
@@ -526,24 +524,28 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                     </>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold text-blue-600 mb-4">
+                      <div className="text-2xl font-bold text-orange-600 mb-4">
                         Süre Bitti!
                       </div>
-                      {currentQuestion.question_options.find(opt => opt.id === selectedAnswer)?.is_correct ? (
+                      {showEarnedPoints && (
                         <>
-                          <div className="text-xl text-green-600 font-bold">
-                            Doğru Cevap! 🎉
-                          </div>
-                          {earnedPoints > 0 && (
-                            <div className="text-2xl font-bold text-yellow-600 mt-2">
-                              +{earnedPoints} puan kazandın!
+                          {currentQuestion.question_options.find(opt => opt.id === selectedAnswer)?.is_correct ? (
+                            <>
+                              <div className="text-xl text-green-600 font-bold">
+                                Doğru Cevap! 🎉
+                              </div>
+                              {earnedPoints > 0 && (
+                                <div className="text-2xl font-bold text-yellow-600 mt-2">
+                                  +{earnedPoints} puan kazandın!
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-xl text-red-600 font-bold">
+                              Yanlış Cevap 😔
                             </div>
                           )}
                         </>
-                      ) : (
-                        <div className="text-xl text-red-600 font-bold">
-                          Yanlış Cevap 😔
-                        </div>
                       )}
                       <div className="text-black mt-2">
                         Sonraki soruyu bekliyoruz...
