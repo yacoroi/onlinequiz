@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow mobile device access
+  allowedDevOrigins: ['192.168.1.137'],
+  
   // Optimize for browser compatibility
   experimental: {
     optimizePackageImports: ['@supabase/supabase-js'],
