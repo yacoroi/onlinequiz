@@ -123,7 +123,7 @@ export default function MyQuizzes() {
             </Link>
             <button
               onClick={() => router.push('/')}
-              className="text-gray-600 hover:text-gray-800"
+              className="text-black hover:text-black"
             >
               Ana Sayfa
             </button>
@@ -140,7 +140,7 @@ export default function MyQuizzes() {
 
         {quizzes.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-500 text-xl mb-4">
+            <div className="text-black text-xl mb-4">
               Henüz hiç quiz oluşturmadınız
             </div>
             <Link
@@ -154,17 +154,17 @@ export default function MyQuizzes() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quizzes.map((quiz) => (
               <div key={quiz.id} className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                <h3 className="text-xl font-bold text-black mb-2">
                   {quiz.title}
                 </h3>
                 
                 {quiz.description && (
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-black mb-4">
                     {quiz.description}
                   </p>
                 )}
 
-                <div className="text-sm text-gray-500 mb-4">
+                <div className="text-sm text-black mb-4">
                   <div>
                     Soru Sayısı: {quiz.questions?.[0]?.count || 0}
                   </div>

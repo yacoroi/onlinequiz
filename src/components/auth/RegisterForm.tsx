@@ -27,7 +27,7 @@ export default function RegisterForm() {
 
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6">Kayıt Ol</h2>
+      <h2 className="text-2xl font-bold text-center mb-6 text-black">Kayıt Ol</h2>
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -37,7 +37,7 @@ export default function RegisterForm() {
 
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="username" className="block text-sm font-medium text-black mb-2">
             Kullanıcı Adı
           </label>
           <input
@@ -45,13 +45,13 @@ export default function RegisterForm() {
             id="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </div>
 
         <div className="mb-4">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
             E-posta
           </label>
           <input
@@ -59,13 +59,13 @@ export default function RegisterForm() {
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </div>
 
         <div className="mb-6">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
             Şifre
           </label>
           <input
@@ -73,7 +73,7 @@ export default function RegisterForm() {
             id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
             minLength={6}
             required
           />

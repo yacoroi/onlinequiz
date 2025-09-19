@@ -360,7 +360,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
         {session.status === 'waiting' && (
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              <h2 className="text-2xl font-bold text-black mb-6">
                 Oyuncular Katılıyor...
               </h2>
               
@@ -380,7 +380,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
                       }`}
                     >
                       <div className={`font-medium ${
-                        participant.is_active ? 'text-blue-800' : 'text-gray-600'
+                        participant.is_active ? 'text-blue-800' : 'text-black'
                       }`}>
                         {participant.nickname}
                       </div>
@@ -408,7 +408,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
               <div className="flex justify-between items-center mb-6">
-                <div className="text-lg font-medium text-gray-600">
+                <div className="text-lg font-medium text-black">
                   Soru {session.current_question_index + 1} / {session.quiz.questions.length}
                 </div>
                 <div className="text-3xl font-bold text-red-600">
@@ -416,7 +416,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-800 mb-8">
+              <h2 className="text-2xl font-bold text-black mb-8">
                 {currentQuestion.question_text}
               </h2>
 
@@ -440,7 +440,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
         {showResults && currentQuestion && (
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Sonuçlar</h2>
+              <h2 className="text-2xl font-bold text-black mb-6">Sonuçlar</h2>
 
               <div className="grid grid-cols-2 gap-6 mb-8">
                 {currentQuestion.question_options.map((option) => {
@@ -496,7 +496,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
         {session.status === 'finished' && (
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
-              <h2 className="text-3xl font-bold text-gray-800 mb-8">
+              <h2 className="text-3xl font-bold text-black mb-8">
                 🏆 Oyun Bitti!
               </h2>
 

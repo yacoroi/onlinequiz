@@ -431,11 +431,11 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         {session?.status === 'waiting' && (
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              <h2 className="text-2xl font-bold text-black mb-6">
                 Oyun Başlamasını Bekliyoruz...
               </h2>
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-              <p className="text-gray-600 mt-4">
+              <p className="text-black mt-4">
                 Host oyunu başlatacak
               </p>
             </div>
@@ -447,7 +447,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
               <div className="flex justify-between items-center mb-6">
-                <div className="text-lg font-medium text-gray-600">
+                <div className="text-lg font-medium text-black">
                   Soru {(session?.current_question_index || 0) + 1}
                 </div>
                 <div className="text-3xl font-bold text-red-600">
@@ -455,7 +455,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold text-gray-800 mb-8">
+              <h2 className="text-xl font-bold text-black mb-8">
                 {currentQuestion.question_text}
               </h2>
 
@@ -466,7 +466,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                       <div className="text-2xl font-bold text-green-600 mb-4">
                         Cevabın Alındı! ✓
                       </div>
-                      <div className="text-gray-600">
+                      <div className="text-black">
                         Süre bitmesini bekliyoruz...
                       </div>
                     </>
@@ -484,7 +484,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                           Yanlış Cevap 😔
                         </div>
                       )}
-                      <div className="text-gray-600 mt-2">
+                      <div className="text-black mt-2">
                         Sonraki soruyu bekliyoruz...
                       </div>
                     </>
@@ -495,7 +495,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                   <div className="text-2xl font-bold text-red-600 mb-4">
                     Süre Bitti!
                   </div>
-                  <div className="text-gray-600">
+                  <div className="text-black">
                     Cevap veremdin...
                   </div>
                 </div>
@@ -525,7 +525,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         {(session?.status === 'finished' || showLeaderboard) && (
           <div className="text-center">
             <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto">
-              <h2 className="text-3xl font-bold text-gray-800 mb-8">
+              <h2 className="text-3xl font-bold text-black mb-8">
                 🏆 Oyun Bitti!
               </h2>
 

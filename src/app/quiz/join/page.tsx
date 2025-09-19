@@ -127,7 +127,7 @@ export default function JoinGame() {
           <h1 className="text-2xl font-bold text-purple-600">Oyuna Katıl</h1>
           <button
             onClick={() => router.push('/')}
-            className="text-gray-600 hover:text-gray-800"
+            className="text-black hover:text-gray-800"
           >
             Ana Sayfa
           </button>
@@ -138,12 +138,12 @@ export default function JoinGame() {
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                Oyuna Katıl
-              </h2>
-              <p className="text-gray-600">
-                Host'tan aldığınız PIN kodunu girin
-              </p>
+            <h2 className="text-3xl font-bold text-black mb-2">
+              Oyuna Katıl
+            </h2>
+            <p className="text-black">
+              Host'tan aldığınız PIN kodunu girin
+            </p>
             </div>
 
             {error && (
@@ -154,7 +154,7 @@ export default function JoinGame() {
 
             <form onSubmit={joinGame}>
               <div className="mb-6">
-                <label htmlFor="gamePin" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="gamePin" className="block text-sm font-medium text-black mb-2">
                   Oyun PIN Kodu *
                 </label>
                 <input
@@ -162,7 +162,7 @@ export default function JoinGame() {
                   id="gamePin"
                   value={gamePin}
                   onChange={(e) => setGamePin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full px-4 py-3 text-2xl text-center border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 tracking-wider"
+                  className="w-full px-4 py-3 text-2xl text-center border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-purple-500 tracking-wider"
                   placeholder="123456"
                   maxLength={6}
                   required
@@ -170,7 +170,7 @@ export default function JoinGame() {
               </div>
 
               <div className="mb-6">
-                <label htmlFor="nickname" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="nickname" className="block text-sm font-medium text-black mb-2">
                   {user ? 'Takma Ad (İsteğe bağlı)' : 'Oyuncu Adınız *'}
                 </label>
                 <input
@@ -178,12 +178,12 @@ export default function JoinGame() {
                   id="nickname"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
                   placeholder={user?.email?.split('@')[0] || 'Oyuncu adınızı girin'}
                   maxLength={20}
                   required={!user}
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-black mt-1">
                   {user 
                     ? `Boş bırakırsanız: ${user.email?.split('@')[0] || 'Oyuncu'}`
                     : 'Bu isim diğer oyuncular tarafından görülecek'
@@ -201,10 +201,10 @@ export default function JoinGame() {
             </form>
 
             <div className="mt-8 text-center">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-black">
                 PIN kodunuz yok mu?
               </div>
-              <div className="text-sm text-gray-600 mt-1">
+              <div className="text-sm text-black mt-1">
                 Host'tan 6 haneli PIN kodunu isteyin
               </div>
             </div>

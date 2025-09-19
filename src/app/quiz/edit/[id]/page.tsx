@@ -295,7 +295,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
           <h1 className="text-2xl font-bold text-purple-600">Quiz Düzenle</h1>
           <button
             onClick={() => router.push('/quiz/my-quizzes')}
-            className="text-gray-600 hover:text-gray-800"
+            className="text-black hover:text-black"
           >
             Geri Dön
           </button>
@@ -314,7 +314,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
           <h2 className="text-xl font-bold mb-4">Quiz Bilgileri</h2>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Quiz Başlığı *
             </label>
             <input
@@ -327,7 +327,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Açıklama
             </label>
             <textarea
@@ -349,10 +349,10 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
               <div key={question.id} className="border-b border-gray-200 pb-4 mb-4 last:border-b-0 last:mb-0">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h3 className="font-medium text-gray-800 mb-2">
+                    <h3 className="font-medium text-black mb-2">
                       {index + 1}. {question.question_text}
                     </h3>
-                    <div className="text-sm text-gray-600 mb-2">
+                    <div className="text-sm text-black mb-2">
                       Süre: {question.time_limit}s | Puan: {question.points}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -387,7 +387,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
           <h2 className="text-xl font-bold mb-4">Yeni Soru Ekle</h2>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Soru Metni *
             </label>
             <textarea
@@ -401,7 +401,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Süre (saniye)
               </label>
               <input
@@ -415,7 +415,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Puan
               </label>
               <input
@@ -431,7 +431,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Seçenekler (Doğru cevapları işaretleyin)
             </label>
             

@@ -25,7 +25,7 @@ export default function Home() {
           <div className="container mx-auto flex justify-between items-center">
             <h1 className="text-2xl font-bold text-purple-600">Online Quiz</h1>
             <div className="flex items-center gap-4">
-              <span className="text-gray-700">Hoş geldin, {user.email}</span>
+              <span className="text-black">Hoş geldin, {user.email}</span>
               <button
                 onClick={signOut}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
@@ -53,8 +53,8 @@ export default function Home() {
                   <div className="bg-green-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <span className="text-white text-2xl">+</span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Quiz Oluştur</h3>
-                  <p className="text-gray-600">Yeni bir quiz oluştur ve arkadaşlarınla paylaş</p>
+                  <h3 className="text-xl font-bold text-black mb-2">Quiz Oluştur</h3>
+                  <p className="text-black">Yeni bir quiz oluştur ve arkadaşlarınla paylaş</p>
                 </div>
               </div>
             </Link>
@@ -65,8 +65,8 @@ export default function Home() {
                   <div className="bg-blue-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <span className="text-white text-2xl">→</span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Oyuna Katıl</h3>
-                  <p className="text-gray-600">PIN kodu ile bir oyuna katıl</p>
+                  <h3 className="text-xl font-bold text-black mb-2">Oyuna Katıl</h3>
+                  <p className="text-black">PIN kodu ile bir oyuna katıl</p>
                 </div>
               </div>
             </Link>
@@ -77,8 +77,8 @@ export default function Home() {
                   <div className="bg-purple-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <span className="text-white text-2xl">📋</span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Quizlerim</h3>
-                  <p className="text-gray-600">Oluşturduğun quizleri yönet</p>
+                  <h3 className="text-xl font-bold text-black mb-2">Quizlerim</h3>
+                  <p className="text-black">Oluşturduğun quizleri yönet</p>
                 </div>
               </div>
             </Link>
@@ -107,8 +107,8 @@ export default function Home() {
                 <div className="bg-blue-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                   <span className="text-white text-2xl">→</span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Oyuna Katıl</h3>
-                <p className="text-gray-600">PIN kodu ile bir oyuna katıl</p>
+                <h3 className="text-xl font-bold text-black mb-2">Oyuna Katıl</h3>
+                <p className="text-black">PIN kodu ile bir oyuna katıl</p>
               </div>
             </div>
           </Link>
@@ -122,7 +122,7 @@ export default function Home() {
                 className={`flex-1 py-2 px-4 font-medium transition-colors ${
                   showLogin
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-black hover:bg-gray-200'
                 }`}
               >
                 Giriş Yap
@@ -132,7 +132,7 @@ export default function Home() {
                 className={`flex-1 py-2 px-4 font-medium transition-colors ${
                   !showLogin
                     ? 'bg-green-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-black hover:bg-gray-200'
                 }`}
               >
                 Kayıt Ol

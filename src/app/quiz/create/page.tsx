@@ -193,7 +193,7 @@ export default function CreateQuiz() {
           <h1 className="text-2xl font-bold text-purple-600">Quiz Oluştur</h1>
           <button
             onClick={() => router.push('/')}
-            className="text-gray-600 hover:text-gray-800"
+            className="text-black hover:text-black"
           >
             Ana Sayfa
           </button>
@@ -209,29 +209,29 @@ export default function CreateQuiz() {
 
         {/* Quiz Info */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4">Quiz Bilgileri</h2>
+          <h2 className="text-xl font-bold mb-4 text-black">Quiz Bilgileri</h2>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Quiz Başlığı *
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
               placeholder="Örnek: Genel Kültür Quizi"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Açıklama
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
               rows={3}
               placeholder="Quiz hakkında kısa bir açıklama..."
             />
@@ -247,10 +247,10 @@ export default function CreateQuiz() {
               <div key={question.id} className="border-b border-gray-200 pb-4 mb-4 last:border-b-0 last:mb-0">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h3 className="font-medium text-gray-800 mb-2">
+                    <h3 className="font-medium text-black mb-2">
                       {index + 1}. {question.question_text}
                     </h3>
-                    <div className="text-sm text-gray-600 mb-2">
+                    <div className="text-sm text-black mb-2">
                       Süre: {question.time_limit}s | Puan: {question.points}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -282,16 +282,16 @@ export default function CreateQuiz() {
 
         {/* Add Question */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4">Yeni Soru Ekle</h2>
+          <h2 className="text-xl font-bold mb-4 text-black">Yeni Soru Ekle</h2>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Soru Metni *
             </label>
             <textarea
               value={currentQuestion.question_text}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, question_text: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
               rows={3}
               placeholder="Soruyu buraya yazın..."
             />
@@ -299,7 +299,7 @@ export default function CreateQuiz() {
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Süre (saniye)
               </label>
               <input
@@ -308,12 +308,12 @@ export default function CreateQuiz() {
                 onChange={(e) => setCurrentQuestion({ ...currentQuestion, time_limit: parseInt(e.target.value) })}
                 min="5"
                 max="300"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Puan
               </label>
               <input
@@ -323,13 +323,13 @@ export default function CreateQuiz() {
                 min="100"
                 max="2000"
                 step="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Seçenekler (Doğru cevapları işaretleyin)
             </label>
             
@@ -342,7 +342,7 @@ export default function CreateQuiz() {
                     type="text"
                     value={option.option_text}
                     onChange={(e) => updateOption(index, 'option_text', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder={`Seçenek ${index + 1}`}
                   />
                   
