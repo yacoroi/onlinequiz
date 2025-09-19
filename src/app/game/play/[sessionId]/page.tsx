@@ -226,7 +226,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       setCurrentQuestion(data)
       
       // Calculate time left based on server time
-      const currentSession = sessionData || session
+      const currentSession = session
       if (currentSession?.current_question_started_at) {
         const startTime = new Date(currentSession.current_question_started_at).getTime()
         const currentTime = Date.now()
@@ -278,7 +278,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       setCurrentQuestion(data)
       
       // Calculate time left based on server time
-      const currentSession = sessionData || session
+      const currentSession = session
       if (currentSession?.current_question_started_at) {
         const startTime = new Date(currentSession.current_question_started_at).getTime()
         const currentTime = Date.now()
