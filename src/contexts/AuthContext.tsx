@@ -85,18 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         
         if (event === 'SIGNED_IN' && session?.user) {
-          try {
-            // Create or update user profile
-            await supabase
-              .from('profiles')
-              .upsert({
-                id: session.user.id,
-                email: session.user.email,
-                updated_at: new Date().toISOString(),
-              })
-          } catch (error) {
-            console.error('Profile update error:', error)
-          }
+          console.log('User signed in:', session.user.id)
+          // No profile table in this project, just log the sign in
         }
       }
     )
@@ -124,17 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (error) throw error
     
-    // Create profile with username
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert([
-        {
-          email,
-          username,
-        }
-      ])
-    
-    if (profileError) throw profileError
+    // No profiles table in this project, just sign up the user
+    console.log('User signed up successfully')
   }, [])
 
   const signOut = useCallback(async () => {

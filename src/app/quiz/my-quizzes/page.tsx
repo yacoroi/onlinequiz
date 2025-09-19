@@ -28,10 +28,21 @@ export default function MyQuizzes() {
   useEffect(() => {
     console.log('MyQuizzes useEffect:', { authLoading, user: !!user })
     
+    // Add timeout for auth loading
+    const authTimeout = setTimeout(() => {
+      if (authLoading) {
+        console.log('Auth loading timeout - proceeding anyway')
+        setLoading(true)
+        fetchQuizzes()
+      }
+    }, 2000)
+    
     if (authLoading) {
       console.log('Still loading auth, waiting...')
-      return // Wait for auth to load
+      return () => clearTimeout(authTimeout)
     }
+    
+    clearTimeout(authTimeout)
     
     if (!user) {
       console.log('No user, redirecting to home')
@@ -42,14 +53,21 @@ export default function MyQuizzes() {
     console.log('Starting to fetch quizzes')
     setLoading(true)
     fetchQuizzes()
+    
+    return () => clearTimeout(authTimeout)
   }, [user, authLoading, router])
 
   const fetchQuizzes = async () => {
     console.log('fetchQuizzes called with user:', user?.id)
     
-    if (!user?.id) {
-      console.log('No user ID, stopping fetch')
+    // Get current session instead of relying on user state
+    const { data: { session } } = await supabase.auth.getSession()
+    const currentUserId = session?.user?.id || user?.id
+    
+    if (!currentUserId) {
+      console.log('No user ID available, stopping fetch')
       setLoading(false)
+      setError('Kullanıcı girişi gerekli')
       return
     }
     
@@ -68,7 +86,7 @@ export default function MyQuizzes() {
       const { data: quizzesData, error: quizzesError } = await supabase
         .from('quizzes')
         .select('id, title, description, created_at')
-        .eq('creator_id', user.id)
+        .eq('creator_id', currentUserId)
         .order('created_at', { ascending: false })
 
       if (quizzesError) throw quizzesError
