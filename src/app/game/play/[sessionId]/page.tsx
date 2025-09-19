@@ -74,8 +74,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         
         if (newSession.status === 'started') {
           // Quiz ID'yi payload'dan alarak direkt kullan
-          fetchCurrentQuestionWithQuizId(newSession.current_question_index, newSession.quiz_id)
-          setTimeLeft(0) // Will be set when question loads
+          fetchCurrentQuestionWithQuizId(newSession.current_question_index, newSession.quiz_id, newSession)
           setSelectedAnswer(null)
           setHasAnswered(false)
           setShowLeaderboard(false)
@@ -219,7 +218,18 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       // Sort options by order_index
       data.question_options.sort((a: any, b: any) => a.order_index - b.order_index)
       setCurrentQuestion(data)
-      setTimeLeft(data.time_limit)
+      
+      // Calculate time left based on server time
+      const currentSession = sessionData || session
+      if (currentSession?.current_question_started_at) {
+        const startTime = new Date(currentSession.current_question_started_at).getTime()
+        const currentTime = Date.now()
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000)
+        const timeRemaining = Math.max(0, data.time_limit - elapsedSeconds)
+        setTimeLeft(timeRemaining)
+      } else {
+        setTimeLeft(data.time_limit)
+      }
 
       // Check if user already answered this question
       const { data: existingAnswer } = await supabase
@@ -239,7 +249,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     }
   }
 
-  const fetchCurrentQuestionWithQuizId = async (questionIndex: number, quizId: string) => {
+  const fetchCurrentQuestionWithQuizId = async (questionIndex: number, quizId: string, sessionData?: GameSession) => {
     try {
       console.log('Fetching question with quiz ID:', { questionIndex, quizId })
       
@@ -260,7 +270,18 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       // Sort options by order_index
       data.question_options.sort((a: any, b: any) => a.order_index - b.order_index)
       setCurrentQuestion(data)
-      setTimeLeft(data.time_limit)
+      
+      // Calculate time left based on server time
+      const currentSession = sessionData || session
+      if (currentSession?.current_question_started_at) {
+        const startTime = new Date(currentSession.current_question_started_at).getTime()
+        const currentTime = Date.now()
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000)
+        const timeRemaining = Math.max(0, data.time_limit - elapsedSeconds)
+        setTimeLeft(timeRemaining)
+      } else {
+        setTimeLeft(data.time_limit)
+      }
 
       // Check if user already answered this question
       const { data: existingAnswer } = await supabase
@@ -312,11 +333,16 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       const selectedOption = currentQuestion.question_options.find(opt => opt.id === optionId)
       const isCorrect = selectedOption?.is_correct || false
 
-      // Calculate initial points based on current time left
+      // Calculate points based on current time left
       let points = 0
       if (isCorrect) {
-        const timeBonus = Math.max(0, (timeLeft / currentQuestion.time_limit) * 0.5) // 50% time bonus
-        points = Math.round(currentQuestion.points * (0.5 + timeBonus))
+        const maxPoints = currentQuestion.points
+        const minPoints = Math.floor(maxPoints / 2)
+        const timeElapsed = currentQuestion.time_limit - timeLeft
+        const pointsRange = maxPoints - minPoints
+        const pointReductionPerSecond = pointsRange / currentQuestion.time_limit
+        const totalPointReduction = timeElapsed * pointReductionPerSecond
+        points = Math.max(minPoints, Math.round(maxPoints - totalPointReduction))
       }
 
       // Save answer with calculated points
