@@ -42,7 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Auth session error:', error)
+          // Clear corrupted session data
+          if (error.message?.includes('Refresh Token')) {
+            supabase.auth.signOut()
+          }
+          setSession(null)
+          setUser(null)
           setLoading(false)
+          clearTimeout(timeout)
           return
         }
         
@@ -54,6 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch((error) => {
         if (!mounted) return
         console.error('Auth session error:', error)
+        // Clear any corrupted auth state
+        setSession(null)
+        setUser(null)
         setLoading(false)
         clearTimeout(timeout)
       })
