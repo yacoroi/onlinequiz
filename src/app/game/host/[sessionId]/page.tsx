@@ -520,7 +520,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
                       }`}>
                         {index + 1}
                       </div>
-                      <div className="font-medium">{participant.nickname}</div>
+                      <div className="font-medium text-black">{participant.nickname}</div>
                     </div>
                     <div className="font-bold text-lg">
                       {participant.total_score} puan

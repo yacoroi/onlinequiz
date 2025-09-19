@@ -550,7 +550,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                       }`}>
                         {index + 1}
                       </div>
-                      <div className="font-medium">
+                      <div className="font-medium text-black">
                         {p.nickname}
                         {p.id === participant?.id && ' (Sen)'}
                       </div>
