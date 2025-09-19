@@ -237,26 +237,33 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
     }
 
     try {
+      const startTime = new Date().toISOString()
+      
+      // Update database first
       const { error } = await supabase
         .from('game_sessions')
         .update({
           current_question_index: nextIndex,
-          current_question_started_at: new Date().toISOString()
+          current_question_started_at: startTime
         })
         .eq('id', sessionId)
 
       if (error) throw error
 
+      // Then update local state with same timestamp
       setSession(prev => prev ? {
         ...prev,
         current_question_index: nextIndex,
-        current_question_started_at: new Date().toISOString()
+        current_question_started_at: startTime
       } : null)
       
       setTimeLeft(nextQuestion.time_limit)
       setShowResults(false)
       setQuestionResults([])
+      
+      console.log(`Started question ${nextIndex + 1} at ${startTime}`)
     } catch (error: any) {
+      console.error('Error showing next question:', error)
       setError(error.message)
     }
   }
