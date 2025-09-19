@@ -106,10 +106,13 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
     let mounted = true
     
     if (session?.status === 'started' && timeLeft > 0) {
-      interval = setInterval(() => {
+      interval = setInterval(async () => {
+        // Check if all active participants have answered
+        const allAnswered = await checkAllPlayersAnswered()
+        
         setTimeLeft(prev => {
           if (!mounted) return prev
-          if (prev <= 1) {
+          if (prev <= 1 || allAnswered) {
             showQuestionResults()
             return 0
           }
@@ -187,6 +190,42 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
       console.log('Updated participants state:', data?.length || 0, 'participants')
     } catch (error: any) {
       console.error('Error fetching participants:', error)
+    }
+  }
+
+  const checkAllPlayersAnswered = async () => {
+    if (!session || session.status !== 'started') return false
+    
+    try {
+      // Get active participants count
+      const activeParticipants = participants.filter(p => p.is_active)
+      if (activeParticipants.length === 0) return false
+      
+      // Get current question
+      const currentQuestion = session.quiz.questions[session.current_question_index]
+      if (!currentQuestion) return false
+      
+      // Count answers for current question
+      const { count, error } = await supabase
+        .from('game_answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId)
+        .eq('question_id', currentQuestion.id)
+      
+      if (error) {
+        console.error('Error checking answers:', error)
+        return false
+      }
+      
+      const allAnswered = count >= activeParticipants.length
+      if (allAnswered) {
+        console.log(`All ${activeParticipants.length} players have answered! Auto-advancing...`)
+      }
+      
+      return allAnswered
+    } catch (error) {
+      console.error('Error in checkAllPlayersAnswered:', error)
+      return false
     }
   }
 
@@ -420,8 +459,13 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
                 <div className="text-lg font-medium text-black">
                   Soru {session.current_question_index + 1} / {session.quiz.questions.length}
                 </div>
-                <div className="text-3xl font-bold text-red-600">
-                  {timeLeft}s
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    {participants.filter(p => p.is_active).length} aktif oyuncu
+                  </div>
+                  <div className="text-3xl font-bold text-red-600">
+                    {timeLeft}s
+                  </div>
                 </div>
               </div>
 

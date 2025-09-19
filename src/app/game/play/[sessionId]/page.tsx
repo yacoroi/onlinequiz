@@ -126,13 +126,16 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     let mounted = true
 
     if (session?.status === 'started' && timeLeft > 0) {
-      interval = setInterval(() => {
+      interval = setInterval(async () => {
+        // Check if all players have answered (for early completion)
+        const allAnswered = hasAnswered ? await checkAllPlayersAnswered() : false
+        
         setTimeLeft(prev => {
           if (!mounted) return prev
           const newTimeLeft = prev - 1 // 1s azalış (host ile senkron)
-          if (newTimeLeft <= 0) {
+          if (newTimeLeft <= 0 || allAnswered) {
             if (hasAnswered) {
-              // Süre bitti, sonuçları göster
+              // Süre bitti veya herkes cevapladı, sonuçları göster
               setShowEarnedPoints(true)
               // Participant skorunu manuel refresh et (gerçek skoru getir)
               refreshParticipantScore()
@@ -148,7 +151,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       mounted = false
       if (interval) clearInterval(interval)
     }
-  }, [timeLeft, session?.status, hasAnswered, earnedPoints])
+  }, [timeLeft, session?.status, hasAnswered])
 
   const fetchGameData = async () => {
     try {
@@ -362,6 +365,40 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       setParticipant(data)
     } catch (error: any) {
       console.error('Error refreshing participant score:', error)
+    }
+  }
+
+  const checkAllPlayersAnswered = async () => {
+    if (!session || !currentQuestion || session.status !== 'started') return false
+    
+    try {
+      // Get active participants count
+      const { count: participantCount, error: participantError } = await supabase
+        .from('game_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId)
+        .eq('is_active', true)
+      
+      if (participantError || !participantCount) return false
+      
+      // Count answers for current question
+      const { count: answerCount, error: answerError } = await supabase
+        .from('game_answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId)
+        .eq('question_id', currentQuestion.id)
+      
+      if (answerError) return false
+      
+      const allAnswered = (answerCount || 0) >= participantCount
+      if (allAnswered) {
+        console.log(`All ${participantCount} players have answered! Time will advance...`)
+      }
+      
+      return allAnswered
+    } catch (error) {
+      console.error('Error checking if all players answered:', error)
+      return false
     }
   }
 
