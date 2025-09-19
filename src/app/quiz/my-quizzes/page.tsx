@@ -74,7 +74,7 @@ export default function MyQuizzes() {
       if (quizzesError) throw quizzesError
 
       // Then get question counts in parallel if we have quizzes
-      let quizzesWithCount = []
+      let quizzesWithCount: Quiz[] = []
       if (quizzesData && quizzesData.length > 0) {
         const questionCountPromises = quizzesData.map(async (quiz) => {
           const { count } = await supabase
