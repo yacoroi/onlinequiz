@@ -26,25 +26,43 @@ export default function MyQuizzes() {
   const [startingQuizId, setStartingQuizId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (authLoading) return // Wait for auth to load
+    console.log('MyQuizzes useEffect:', { authLoading, user: !!user })
+    
+    if (authLoading) {
+      console.log('Still loading auth, waiting...')
+      return // Wait for auth to load
+    }
     
     if (!user) {
+      console.log('No user, redirecting to home')
       router.push('/')
       return
     }
 
+    console.log('Starting to fetch quizzes')
     setLoading(true)
     fetchQuizzes()
   }, [user, authLoading, router])
 
   const fetchQuizzes = async () => {
+    console.log('fetchQuizzes called with user:', user?.id)
+    
     if (!user?.id) {
+      console.log('No user ID, stopping fetch')
       setLoading(false)
       return
     }
     
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log('Fetch quizzes timeout')
+      setLoading(false)
+      setError('Yükleme zaman aşımına uğradı')
+    }, 5000)
+    
     try {
       setError('') // Clear previous errors
+      console.log('Making Supabase query...')
       
       // Use left join to get quizzes with question counts in one query
       const { data, error } = await supabase
@@ -59,6 +77,9 @@ export default function MyQuizzes() {
         .eq('creator_id', user.id)
         .order('created_at', { ascending: false })
 
+      clearTimeout(timeoutId)
+      console.log('Supabase query result:', { data, error })
+
       if (error) throw error
 
       // Transform data to include question count
@@ -67,12 +88,15 @@ export default function MyQuizzes() {
         questions: [{ count: quiz.questions?.length || 0 }]
       }))
       
+      console.log('Transformed quizzes:', quizzesWithCount)
       setQuizzes(quizzesWithCount)
     } catch (error: any) {
+      clearTimeout(timeoutId)
       console.error('Fetch quizzes error:', error)
       setError('Quiz\'ler yüklenirken bir hata oluştu: ' + error.message)
     } finally {
       setLoading(false)
+      console.log('fetchQuizzes completed')
     }
   }
 

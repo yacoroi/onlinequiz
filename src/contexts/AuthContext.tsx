@@ -29,19 +29,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let timeout: NodeJS.Timeout
     
     const initAuth = async () => {
-      // Set timeout to prevent infinite loading
+      // Set shorter timeout to prevent long loading
       timeout = setTimeout(() => {
-        if (mounted && loading) {
-          console.warn('Auth initialization timeout')
+        if (mounted) {
+          console.warn('Auth initialization timeout - proceeding without auth')
+          setSession(null)
+          setUser(null)
           setLoading(false)
         }
-      }, 10000) // 10 second timeout
+      }, 3000) // 3 second timeout
 
       try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // Get initial session with race condition to timeout
+        const sessionPromise = supabase.auth.getSession()
+        const { data: { session }, error } = await sessionPromise
         
         if (!mounted) return
+        
+        clearTimeout(timeout)
         
         if (error) {
           console.error('Auth session error:', error)
@@ -52,22 +57,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null)
           setUser(null)
           setLoading(false)
-          clearTimeout(timeout)
           return
         }
         
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
-        clearTimeout(timeout)
       } catch (error) {
         if (!mounted) return
         console.error('Auth session error:', error)
+        clearTimeout(timeout)
         // Clear any corrupted auth state
         setSession(null)
         setUser(null)
         setLoading(false)
-        clearTimeout(timeout)
       }
     }
 

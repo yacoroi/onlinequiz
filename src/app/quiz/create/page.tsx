@@ -103,6 +103,8 @@ export default function CreateQuiz() {
   }
 
   const saveQuiz = async () => {
+    console.log('saveQuiz called')
+    
     if (!title.trim()) {
       setError('Quiz başlığı gereklidir')
       return
@@ -113,10 +115,19 @@ export default function CreateQuiz() {
       return
     }
 
+    console.log('Starting quiz save:', { title, questionsCount: questions.length, userId: user?.id })
     setLoading(true)
     setError('')
 
+    // Add timeout
+    const timeoutId = setTimeout(() => {
+      console.log('Save quiz timeout')
+      setLoading(false)
+      setError('Kaydetme zaman aşımına uğradı')
+    }, 10000)
+
     try {
+      console.log('Creating quiz...')
       // Create quiz
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
@@ -124,17 +135,20 @@ export default function CreateQuiz() {
           {
             title: title.trim(),
             description: description.trim(),
-            creator_id: user.id,
+            creator_id: user?.id,
           }
         ])
         .select()
         .single()
 
+      console.log('Quiz creation result:', { quiz, quizError })
       if (quizError) throw quizError
 
+      console.log('Adding questions...')
       // Add questions
       for (let i = 0; i < questions.length; i++) {
         const question = questions[i]
+        console.log(`Adding question ${i + 1}:`, question.question_text)
         
         const { data: questionData, error: questionError } = await supabase
           .from('questions')
@@ -150,10 +164,13 @@ export default function CreateQuiz() {
           .select()
           .single()
 
+        console.log('Question creation result:', { questionData, questionError })
         if (questionError) throw questionError
 
         // Add options
         const validOptions = question.options.filter(opt => opt.option_text.trim())
+        console.log(`Adding ${validOptions.length} options for question ${i + 1}`)
+        
         for (let j = 0; j < validOptions.length; j++) {
           const option = validOptions[j]
           
@@ -169,15 +186,21 @@ export default function CreateQuiz() {
               }
             ])
 
+          console.log(`Option ${j + 1} result:`, { option: option.option_text, error: optionError })
           if (optionError) throw optionError
         }
       }
 
+      clearTimeout(timeoutId)
+      console.log('Quiz saved successfully, redirecting...')
       router.push('/quiz/my-quizzes')
     } catch (error: any) {
-      setError(error.message)
+      clearTimeout(timeoutId)
+      console.error('Save quiz error:', error)
+      setError('Quiz kaydedilirken bir hata oluştu: ' + error.message)
     } finally {
       setLoading(false)
+      console.log('saveQuiz completed')
     }
   }
 
