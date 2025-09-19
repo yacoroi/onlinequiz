@@ -217,7 +217,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
         return false
       }
       
-      const allAnswered = count >= activeParticipants.length
+      const allAnswered = (count || 0) >= activeParticipants.length
       if (allAnswered) {
         console.log(`All ${activeParticipants.length} players have answered! Auto-advancing...`)
       }
