@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { getStaticColorClass, generateGamePin } from '@/lib/utils'
 
 interface GameSession {
   id: string
@@ -62,6 +63,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
       return
     }
 
+    let mounted = true
     fetchSessionData()
     
     // Subscribe to real-time updates with better channel management
@@ -73,13 +75,17 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
         table: 'game_participants',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
+        if (!mounted) return
         console.log('Participant change detected:', payload)
         // Kısa bir delay ekleyerek database'in güncellendiğinden emin olalım
         setTimeout(() => {
-          fetchParticipants()
+          if (mounted) {
+            fetchParticipants()
+          }
         }, 100)
       })
       .subscribe((status) => {
+        if (!mounted) return
         console.log('Participants subscription status:', status)
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to participant changes')
@@ -89,16 +95,20 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
       })
 
     return () => {
+      mounted = false
+      participantsChannel.unsubscribe()
       supabase.removeChannel(participantsChannel)
     }
   }, [user, sessionId, router])
 
   useEffect(() => {
     let interval: NodeJS.Timeout
+    let mounted = true
     
     if (session?.status === 'started' && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
+          if (!mounted) return prev
           if (prev <= 1) {
             showQuestionResults()
             return 0
@@ -109,6 +119,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
     }
 
     return () => {
+      mounted = false
       if (interval) clearInterval(interval)
     }
   }, [timeLeft, session?.status])
@@ -301,15 +312,6 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
     }
   }
 
-  const getColorClass = (color: string) => {
-    switch (color) {
-      case 'red': return 'bg-red-500 text-white'
-      case 'blue': return 'bg-blue-500 text-white'
-      case 'yellow': return 'bg-yellow-500 text-white'
-      case 'green': return 'bg-green-500 text-white'
-      default: return 'bg-gray-500 text-white'
-    }
-  }
 
   if (loading) {
     return (
@@ -424,7 +426,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
                 {currentQuestion.question_options.map((option, index) => (
                   <div
                     key={option.id}
-                    className={`${getColorClass(option.color)} p-6 rounded-lg`}
+                    className={`${getStaticColorClass(option.color)} p-6 rounded-lg`}
                   >
                     <div className="text-xl font-bold">
                       {option.option_text}
@@ -450,7 +452,7 @@ export default function HostGame({ params }: { params: Promise<{ sessionId: stri
                   return (
                     <div
                       key={option.id}
-                      className={`${getColorClass(option.color)} p-6 rounded-lg relative ${
+                      className={`${getStaticColorClass(option.color)} p-6 rounded-lg relative ${
                         isCorrect ? 'ring-4 ring-yellow-400' : ''
                       }`}
                     >

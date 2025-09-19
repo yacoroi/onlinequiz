@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { getQuizEditColorClass } from '@/lib/utils'
 
 interface Question {
   id: string
@@ -261,16 +262,6 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
     }
   }
 
-  const getColorClass = (color: string, isSelected = false) => {
-    const base = isSelected ? 'ring-2 ring-offset-2' : ''
-    switch (color) {
-      case 'red': return `bg-red-500 hover:bg-red-600 text-white ${base} ring-red-500`
-      case 'blue': return `bg-blue-500 hover:bg-blue-600 text-white ${base} ring-blue-500`
-      case 'yellow': return `bg-yellow-500 hover:bg-yellow-600 text-white ${base} ring-yellow-500`
-      case 'green': return `bg-green-500 hover:bg-green-600 text-white ${base} ring-green-500`
-      default: return `bg-gray-500 hover:bg-gray-600 text-white ${base} ring-gray-500`
-    }
-  }
 
   if (loading) {
     return (
@@ -361,7 +352,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
                         .map((option, optIndex) => (
                         <div
                           key={optIndex}
-                          className={`px-3 py-2 rounded text-sm ${getColorClass(option.color)} ${
+                          className={`px-3 py-2 rounded text-sm ${getQuizEditColorClass(option.color)} ${
                             option.is_correct ? 'ring-2 ring-offset-1 ring-black' : ''
                           }`}
                         >
@@ -438,7 +429,7 @@ export default function EditQuiz({ params }: { params: Promise<{ id: string }> }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {currentQuestion.options.map((option, index) => (
                 <div key={option.id} className="flex items-center gap-3">
-                  <div className={`w-6 h-6 rounded ${getColorClass(option.color)} flex-shrink-0`}></div>
+                  <div className={`w-6 h-6 rounded ${getQuizEditColorClass(option.color)} flex-shrink-0`}></div>
                   
                   <input
                     type="text"

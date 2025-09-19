@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { getColorClass, calculatePoints, formatElapsedTime } from '@/lib/utils'
 
 interface GameSession {
   id: string
@@ -58,17 +59,19 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
   const [showEarnedPoints, setShowEarnedPoints] = useState(false)
 
   useEffect(() => {
+    let mounted = true
     fetchGameData()
 
     // Subscribe to real-time updates
     const sessionSubscription = supabase
-      .channel('game-session')
+      .channel(`game-session-${sessionId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'game_sessions',
         filter: `id=eq.${sessionId}`
       }, (payload) => {
+        if (!mounted) return
         const newSession = payload.new as GameSession
         setSession(newSession)
         
@@ -88,13 +91,14 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       .subscribe()
 
     const participantsSubscription = supabase
-      .channel('participants')
+      .channel(`participants-${sessionId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'game_participants',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
+        if (!mounted) return
         // Update current participant's score if it changed
         const newParticipant = payload.new as Participant
         if (newParticipant && newParticipant.id === participant?.id) {
@@ -105,6 +109,9 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       .subscribe()
 
     return () => {
+      mounted = false
+      sessionSubscription.unsubscribe()
+      participantsSubscription.unsubscribe()
       supabase.removeChannel(sessionSubscription)
       supabase.removeChannel(participantsSubscription)
     }
@@ -112,24 +119,29 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
   useEffect(() => {
     let interval: NodeJS.Timeout
+    let mounted = true
 
     if (session?.status === 'started' && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
+          if (!mounted) return prev
           const newTimeLeft = prev - 0.1 // 100ms azalış
-          if (newTimeLeft <= 0 && hasAnswered && earnedPoints > 0) {
-            // Süre bitti, sadece kazanılan puanı göster (puan zaten veritabanında kayıtlı)
-            setShowEarnedPoints(true)
-            // Participant skorunu manuel refresh et
-            refreshParticipantScore()
+          if (newTimeLeft <= 0) {
+            if (hasAnswered && earnedPoints > 0) {
+              // Süre bitti, sadece kazanılan puanı göster (puan zaten veritabanında kayıtlı)
+              setShowEarnedPoints(true)
+              // Participant skorunu manuel refresh et
+              refreshParticipantScore()
+            }
             return 0
           }
-          return Math.max(0, newTimeLeft)
+          return newTimeLeft
         })
       }, 100) // 100ms intervals for smooth countdown
     }
 
     return () => {
+      mounted = false
       if (interval) clearInterval(interval)
     }
   }, [timeLeft, session?.status, hasAnswered, earnedPoints])
@@ -207,16 +219,27 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
       console.log('Fetching question:', { questionIndex, quiz_id: session.quiz_id })
       
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          *,
-          question_options (*)
-        `)
-        .eq('quiz_id', session.quiz_id)
-        .eq('order_index', questionIndex)
-        .single()
+      // Optimize with single query including answer check
+      const [questionResult, answerResult] = await Promise.all([
+        supabase
+          .from('questions')
+          .select(`
+            *,
+            question_options (*)
+          `)
+          .eq('quiz_id', session.quiz_id)
+          .eq('order_index', questionIndex)
+          .single(),
+        
+        participant ? supabase
+          .from('game_answers')
+          .select('selected_option_id')
+          .eq('session_id', sessionId)
+          .eq('participant_id', participant.id)
+          .maybeSingle() : Promise.resolve({ data: null, error: null })
+      ])
 
+      const { data, error } = questionResult
       console.log('Question query result:', { data, error })
 
       if (error) throw error
@@ -237,17 +260,9 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         setTimeLeft(data.time_limit)
       }
 
-      // Check if user already answered this question
-      const { data: existingAnswer } = await supabase
-        .from('game_answers')
-        .select('*')
-        .eq('session_id', sessionId)
-        .eq('participant_id', participant?.id)
-        .eq('question_id', data.id)
-        .single()
-
-      if (existingAnswer) {
-        setSelectedAnswer(existingAnswer.selected_option_id)
+      // Set answer state if already answered
+      if (answerResult.data) {
+        setSelectedAnswer(answerResult.data.selected_option_id)
         setHasAnswered(true)
       }
     } catch (error: any) {
@@ -429,26 +444,9 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
   }
 
 
-  const getColorClass = (color: string, isSelected = false, isCorrect = false) => {
-    let baseClass = ''
-    switch (color) {
-      case 'red': baseClass = 'bg-red-500 hover:bg-red-600 text-white'; break
-      case 'blue': baseClass = 'bg-blue-500 hover:bg-blue-600 text-white'; break
-      case 'yellow': baseClass = 'bg-yellow-500 hover:bg-yellow-600 text-white'; break
-      case 'green': baseClass = 'bg-green-500 hover:bg-green-600 text-white'; break
-      default: baseClass = 'bg-gray-500 hover:bg-gray-600 text-white'
-    }
-
-    if (isSelected) {
-      baseClass += ' ring-4 ring-white'
-    }
-    
-    if (hasAnswered && isCorrect) {
-      baseClass += ' ring-4 ring-yellow-400'
-    }
-
-    return baseClass
-  }
+  const getQuestionColorClass = useCallback((color: string, isSelected = false, isCorrect = false) => {
+    return getColorClass(color, isSelected, isCorrect, hasAnswered)
+  }, [hasAnswered])
 
   if (loading) {
     return (
@@ -570,7 +568,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                       key={option.id}
                       onClick={() => submitAnswer(option.id)}
                       disabled={timeLeft <= 0}
-                      className={`p-6 rounded-lg font-bold text-lg transition-all ${getColorClass(
+                      className={`p-6 rounded-lg font-bold text-lg transition-all ${getQuestionColorClass(
                         option.color,
                         selectedAnswer === option.id,
                         option.is_correct

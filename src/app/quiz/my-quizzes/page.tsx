@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { generateGamePin } from '@/lib/utils'
+import QuizCard from '@/components/QuizCard'
 
 interface Quiz {
   id: string
@@ -20,6 +22,8 @@ export default function MyQuizzes() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null)
+  const [startingQuizId, setStartingQuizId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -31,7 +35,10 @@ export default function MyQuizzes() {
   }, [user, router])
 
   const fetchQuizzes = async () => {
+    if (!user?.id) return
+    
     try {
+      // Optimize with aggregated count query
       const { data, error } = await supabase
         .from('quizzes')
         .select(`
@@ -39,13 +46,22 @@ export default function MyQuizzes() {
           title,
           description,
           created_at,
-          questions (count)
+          questions!inner (
+            id
+          )
         `)
-        .eq('creator_id', user?.id)
+        .eq('creator_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setQuizzes(data || [])
+      
+      // Transform data to include question count
+      const quizzesWithCount = (data || []).map(quiz => ({
+        ...quiz,
+        questions: [{ count: quiz.questions?.length || 0 }]
+      }))
+      
+      setQuizzes(quizzesWithCount)
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -53,9 +69,11 @@ export default function MyQuizzes() {
     }
   }
 
-  const deleteQuiz = async (quizId: string) => {
+  const deleteQuiz = useCallback(async (quizId: string) => {
     if (!confirm('Bu quiz\'i silmek istediğinizden emin misiniz?')) return
 
+    setDeletingQuizId(quizId)
+    
     try {
       const { error } = await supabase
         .from('quizzes')
@@ -65,26 +83,28 @@ export default function MyQuizzes() {
 
       if (error) throw error
       
-      setQuizzes(quizzes.filter(quiz => quiz.id !== quizId))
+      setQuizzes(prev => prev.filter(quiz => quiz.id !== quizId))
+      setError('') // Clear any previous errors
     } catch (error: any) {
-      setError(error.message)
+      console.error('Delete quiz error:', error)
+      setError('Quiz silinirken bir hata oluştu: ' + error.message)
+    } finally {
+      setDeletingQuizId(null)
     }
-  }
+  }, [user?.id])
 
-  const startGame = async (quizId: string) => {
+  const startGame = useCallback(async (quizId: string) => {
+    setStartingQuizId(quizId)
+    setError('') // Clear any previous errors
+    
     try {
-      // 6 haneli PIN kodu üret
-      const generatePin = () => {
-        return Math.floor(100000 + Math.random() * 900000).toString().padStart(6, '0')
-      }
-
       const { data, error } = await supabase
         .from('game_sessions')
         .insert([
           {
             quiz_id: quizId,
             host_id: user?.id,
-            game_pin: generatePin(),
+            game_pin: generateGamePin(),
             status: 'waiting'
           }
         ])
@@ -99,9 +119,11 @@ export default function MyQuizzes() {
       router.push(`/game/host/${data.id}`)
     } catch (error: any) {
       console.error('Error creating game session:', error)
-      setError(error.message)
+      setError('Oyun başlatılırken bir hata oluştu: ' + error.message)
+    } finally {
+      setStartingQuizId(null)
     }
-  }
+  }, [user?.id, router])
 
   if (loading) {
     return (
@@ -155,52 +177,14 @@ export default function MyQuizzes() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quizzes.map((quiz) => (
-              <div key={quiz.id} className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold text-black mb-2">
-                  {quiz.title}
-                </h3>
-                
-                {quiz.description && (
-                  <p className="text-black mb-4">
-                    {quiz.description}
-                  </p>
-                )}
-
-                <div className="text-sm text-black mb-4">
-                  <div>
-                    Soru Sayısı: {quiz.questions?.[0]?.count || 0}
-                  </div>
-                  <div>
-                    Oluşturulma: {new Date(quiz.created_at).toLocaleDateString('tr-TR')}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => startGame(quiz.id)}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
-                    disabled={!quiz.questions?.[0]?.count}
-                  >
-                    {quiz.questions?.[0]?.count ? 'Oyun Başlat' : 'Soru Yok'}
-                  </button>
-                  
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/quiz/edit/${quiz.id}`}
-                      className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded text-center transition-colors"
-                    >
-                      Düzenle
-                    </Link>
-                    
-                    <button
-                      onClick={() => deleteQuiz(quiz.id)}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
-                    >
-                      Sil
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <QuizCard
+                key={quiz.id}
+                quiz={quiz}
+                onStartGame={startGame}
+                onDeleteQuiz={deleteQuiz}
+                isStarting={startingQuizId === quiz.id}
+                isDeleting={deletingQuizId === quiz.id}
+              />
             ))}
           </div>
         )}

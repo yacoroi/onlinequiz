@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
@@ -26,25 +26,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    let timeout: NodeJS.Timeout
     
-    // Set timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('Auth initialization timeout')
-        setLoading(false)
-      }
-    }, 10000) // 10 second timeout
+    const initAuth = async () => {
+      // Set timeout to prevent infinite loading
+      timeout = setTimeout(() => {
+        if (mounted && loading) {
+          console.warn('Auth initialization timeout')
+          setLoading(false)
+        }
+      }, 10000) // 10 second timeout
 
-    // Get initial session
-    supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
         if (!mounted) return
         
         if (error) {
           console.error('Auth session error:', error)
           // Clear corrupted session data
           if (error.message?.includes('Refresh Token')) {
-            supabase.auth.signOut()
+            await supabase.auth.signOut()
           }
           setSession(null)
           setUser(null)
@@ -57,8 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         setLoading(false)
         clearTimeout(timeout)
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!mounted) return
         console.error('Auth session error:', error)
         // Clear any corrupted auth state
@@ -66,7 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
         setLoading(false)
         clearTimeout(timeout)
-      })
+      }
+    }
+
+    initAuth()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -95,20 +100,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false
-      clearTimeout(timeout)
+      if (timeout) clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [])
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
     if (error) throw error
-  }
+  }, [])
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = useCallback(async (email: string, password: string, username: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -127,21 +132,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ])
     
     if (profileError) throw profileError
-  }
+  }, [])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
-  }
+  }, [])
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     session,
     loading,
     signIn,
     signUp,
     signOut,
-  }
+  }), [user, session, loading, signIn, signUp, signOut])
 
   return (
     <AuthContext.Provider value={value}>
