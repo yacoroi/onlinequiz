@@ -54,6 +54,8 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
   const [error, setError] = useState('')
   const [leaderboard, setLeaderboard] = useState<Participant[]>([])
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [earnedPoints, setEarnedPoints] = useState(0)
+  const [showEarnedPoints, setShowEarnedPoints] = useState(false)
 
   useEffect(() => {
     fetchGameData()
@@ -77,6 +79,8 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
           setSelectedAnswer(null)
           setHasAnswered(false)
           setShowLeaderboard(false)
+          setEarnedPoints(0)
+          setShowEarnedPoints(false)
         } else if (newSession.status === 'finished') {
           fetchLeaderboard()
           setShowLeaderboard(true)
@@ -108,9 +112,12 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     if (session?.status === 'started' && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
-          if (prev <= 1 && hasAnswered && selectedAnswer) {
-            // Süre bitti ve cevap verilmişti - puanı şimdi güncelle
-            updateScoreAfterTimeUp()
+          if (prev <= 1 && hasAnswered && earnedPoints > 0) {
+            // Süre bitti, kazanılan puanı göster ve participant skorunu güncelle
+            setShowEarnedPoints(true)
+            setParticipant(prevParticipant => 
+              prevParticipant ? { ...prevParticipant, total_score: prevParticipant.total_score + earnedPoints } : null
+            )
           }
           return prev - 1
         })
@@ -120,7 +127,7 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [timeLeft, session?.status, hasAnswered, selectedAnswer])
+  }, [timeLeft, session?.status, hasAnswered, earnedPoints])
 
   const fetchGameData = async () => {
     try {
@@ -271,6 +278,8 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         // Reset answer state for new question
         setSelectedAnswer(null)
         setHasAnswered(false)
+        setEarnedPoints(0)
+        setShowEarnedPoints(false)
       }
     } catch (error: any) {
       console.error('Error fetching question with quiz ID:', error)
@@ -303,7 +312,14 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
       const selectedOption = currentQuestion.question_options.find(opt => opt.id === optionId)
       const isCorrect = selectedOption?.is_correct || false
 
-      // Sadece cevabı kaydet, puanı henüz hesaplama
+      // Calculate initial points based on current time left
+      let points = 0
+      if (isCorrect) {
+        const timeBonus = Math.max(0, (timeLeft / currentQuestion.time_limit) * 0.5) // 50% time bonus
+        points = Math.round(currentQuestion.points * (0.5 + timeBonus))
+      }
+
+      // Save answer with calculated points
       const { error } = await supabase
         .from('game_answers')
         .insert([
@@ -313,48 +329,14 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
             question_id: currentQuestion.id,
             selected_option_id: optionId,
             time_taken: (currentQuestion.time_limit - timeLeft) * 1000,
-            points_earned: 0, // Puanı süre bittikten sonra hesaplayacağız
+            points_earned: points,
             is_correct: isCorrect
           }
         ])
 
       if (error) throw error
 
-      // Puanı hemen güncelleme, sadece cevabı kaydet
-    } catch (error: any) {
-      setError(error.message)
-      setHasAnswered(false)
-      setSelectedAnswer(null)
-    }
-  }
-
-  const updateScoreAfterTimeUp = async () => {
-    if (!currentQuestion || !participant || !selectedAnswer) return
-
-    try {
-      const selectedOption = currentQuestion.question_options.find(opt => opt.id === selectedAnswer)
-      const isCorrect = selectedOption?.is_correct || false
-      
-      // Calculate points based on time and correctness
-      let points = 0
-      if (isCorrect) {
-        const timeBonus = Math.max(0, (timeLeft / currentQuestion.time_limit) * 0.5) // 50% time bonus
-        points = Math.round(currentQuestion.points * (0.5 + timeBonus))
-      }
-
-      // Update the answer record with calculated points
-      const { error: answerUpdateError } = await supabase
-        .from('game_answers')
-        .update({
-          points_earned: points
-        })
-        .eq('session_id', sessionId)
-        .eq('participant_id', participant.id)
-        .eq('question_id', currentQuestion.id)
-
-      if (answerUpdateError) throw answerUpdateError
-
-      // Update participant's total score
+      // Update participant's total score in database immediately but don't show it to user yet
       const { error: updateError } = await supabase
         .from('game_participants')
         .update({
@@ -364,11 +346,15 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
 
       if (updateError) throw updateError
 
-      setParticipant(prev => prev ? { ...prev, total_score: prev.total_score + points } : null)
+      // Store earned points but don't update UI score yet
+      setEarnedPoints(points)
     } catch (error: any) {
-      console.error('Error updating score after time up:', error)
+      setError(error.message)
+      setHasAnswered(false)
+      setSelectedAnswer(null)
     }
   }
+
 
   const getColorClass = (color: string, isSelected = false, isCorrect = false) => {
     let baseClass = ''
@@ -482,6 +468,11 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
                       ) : (
                         <div className="text-xl text-red-600 font-bold">
                           Yanlış Cevap 😔
+                        </div>
+                      )}
+                      {showEarnedPoints && earnedPoints > 0 && (
+                        <div className="text-2xl font-bold text-yellow-600 mt-4">
+                          +{earnedPoints} puan kazandın!
                         </div>
                       )}
                       <div className="text-black mt-2">
