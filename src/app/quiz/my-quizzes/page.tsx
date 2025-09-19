@@ -23,15 +23,12 @@ export default function MyQuizzes() {
 
   useEffect(() => {
     if (!user) {
-      // Use window.location for more reliable mobile navigation
-      if (typeof window !== 'undefined') {
-        window.location.href = '/'
-      }
+      router.push('/')
       return
     }
 
     fetchQuizzes()
-  }, [user])
+  }, [user, router])
 
   const fetchQuizzes = async () => {
     try {
@@ -98,12 +95,8 @@ export default function MyQuizzes() {
 
       console.log('Game session created with PIN:', data.game_pin)
       
-      // Use more reliable navigation for mobile
-      if (typeof window !== 'undefined') {
-        window.location.href = `/game/host/${data.id}`
-      } else {
-        router.push(`/game/host/${data.id}`)
-      }
+      // Use router for better state management
+      router.push(`/game/host/${data.id}`)
     } catch (error: any) {
       console.error('Error creating game session:', error)
       setError(error.message)
