@@ -57,38 +57,43 @@ export default function MyQuizzes() {
     const timeoutId = setTimeout(() => {
       console.log('Fetch quizzes timeout')
       setLoading(false)
-      setError('Yükleme zaman aşımına uğradı')
-    }, 5000)
+      setError('Yükleme zaman aşımına uğradı - Lütfen sayfayı yenileyin')
+    }, 10000)
     
     try {
       setError('') // Clear previous errors
       console.log('Making Supabase query...')
       
-      // Use left join to get quizzes with question counts in one query
-      const { data, error } = await supabase
+      // First get quizzes only
+      const { data: quizzesData, error: quizzesError } = await supabase
         .from('quizzes')
-        .select(`
-          id,
-          title,
-          description,
-          created_at,
-          questions(id)
-        `)
+        .select('id, title, description, created_at')
         .eq('creator_id', user.id)
         .order('created_at', { ascending: false })
 
+      if (quizzesError) throw quizzesError
+
+      // Then get question counts in parallel if we have quizzes
+      let quizzesWithCount = []
+      if (quizzesData && quizzesData.length > 0) {
+        const questionCountPromises = quizzesData.map(async (quiz) => {
+          const { count } = await supabase
+            .from('questions')
+            .select('*', { count: 'exact', head: true })
+            .eq('quiz_id', quiz.id)
+          
+          return {
+            ...quiz,
+            questions: [{ count: count || 0 }]
+          }
+        })
+        
+        quizzesWithCount = await Promise.all(questionCountPromises)
+      }
+
       clearTimeout(timeoutId)
-      console.log('Supabase query result:', { data, error })
-
-      if (error) throw error
-
-      // Transform data to include question count
-      const quizzesWithCount = (data || []).map(quiz => ({
-        ...quiz,
-        questions: [{ count: quiz.questions?.length || 0 }]
-      }))
+      console.log('Supabase query result:', { data: quizzesWithCount })
       
-      console.log('Transformed quizzes:', quizzesWithCount)
       setQuizzes(quizzesWithCount)
     } catch (error: any) {
       clearTimeout(timeoutId)
@@ -193,7 +198,19 @@ export default function MyQuizzes() {
       <div className="container mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
+            <div className="flex justify-between items-center">
+              <span>{error}</span>
+              <button
+                onClick={() => {
+                  setError('')
+                  setLoading(true)
+                  fetchQuizzes()
+                }}
+                className="ml-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+              >
+                Tekrar Dene
+              </button>
+            </div>
           </div>
         )}
 
