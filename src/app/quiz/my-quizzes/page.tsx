@@ -17,28 +17,36 @@ interface Quiz {
 }
 
 export default function MyQuizzes() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [deletingQuizId, setDeletingQuizId] = useState<string | null>(null)
   const [startingQuizId, setStartingQuizId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (authLoading) return // Wait for auth to load
+    
     if (!user) {
       router.push('/')
       return
     }
 
+    setLoading(true)
     fetchQuizzes()
-  }, [user, router])
+  }, [user, authLoading, router])
 
   const fetchQuizzes = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
     
     try {
-      // Optimize with aggregated count query
+      setError('') // Clear previous errors
+      
+      // Use left join to get quizzes with question counts in one query
       const { data, error } = await supabase
         .from('quizzes')
         .select(`
@@ -46,15 +54,13 @@ export default function MyQuizzes() {
           title,
           description,
           created_at,
-          questions!inner (
-            id
-          )
+          questions(id)
         `)
         .eq('creator_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      
+
       // Transform data to include question count
       const quizzesWithCount = (data || []).map(quiz => ({
         ...quiz,
@@ -63,7 +69,8 @@ export default function MyQuizzes() {
       
       setQuizzes(quizzesWithCount)
     } catch (error: any) {
-      setError(error.message)
+      console.error('Fetch quizzes error:', error)
+      setError('Quiz\'ler yüklenirken bir hata oluştu: ' + error.message)
     } finally {
       setLoading(false)
     }
@@ -125,12 +132,16 @@ export default function MyQuizzes() {
     }
   }, [user?.id, router])
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-2xl">Yükleniyor...</div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null // This will redirect in useEffect
   }
 
   return (
