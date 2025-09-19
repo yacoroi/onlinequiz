@@ -27,7 +27,7 @@ export default function Home() {
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600">
         <nav className="bg-white shadow-md p-4">
           <div className="container mx-auto flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-purple-600">Online Quiz</h1>
+            <h1 className="text-2xl font-bold text-purple-600">Genç Saadet</h1>
             <div className="flex items-center gap-4">
               <span className="text-black">Hoş geldin, {user.email}</span>
               <button
@@ -97,7 +97,7 @@ export default function Home() {
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <h1 className="text-6xl font-bold text-white mb-6">
-            Online Quiz
+            Genç Saadet
           </h1>
           <p className="text-xl text-purple-100">
             Gerçek zamanlı quiz oyunları oluştur ve oyna

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Online Quiz",
+  title: "Genç Saadet",
   description: "Gerçek zamanlı quiz uygulaması",
 };
 
