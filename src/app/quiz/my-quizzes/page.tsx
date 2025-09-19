@@ -23,12 +23,15 @@ export default function MyQuizzes() {
 
   useEffect(() => {
     if (!user) {
-      router.push('/')
+      // Use window.location for more reliable mobile navigation
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
       return
     }
 
     fetchQuizzes()
-  }, [user, router])
+  }, [user])
 
   const fetchQuizzes = async () => {
     try {
@@ -94,7 +97,13 @@ export default function MyQuizzes() {
       if (error) throw error
 
       console.log('Game session created with PIN:', data.game_pin)
-      router.push(`/game/host/${data.id}`)
+      
+      // Use more reliable navigation for mobile
+      if (typeof window !== 'undefined') {
+        window.location.href = `/game/host/${data.id}`
+      } else {
+        router.push(`/game/host/${data.id}`)
+      }
     } catch (error: any) {
       console.error('Error creating game session:', error)
       setError(error.message)
@@ -121,12 +130,12 @@ export default function MyQuizzes() {
             >
               Yeni Quiz
             </Link>
-            <button
-              onClick={() => router.push('/')}
-              className="text-black hover:text-black"
+            <Link
+              href="/"
+              className="text-black hover:text-black px-4 py-2 rounded transition-colors"
             >
               Ana Sayfa
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
