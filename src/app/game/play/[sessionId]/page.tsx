@@ -96,8 +96,9 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
         // Update current participant's score if it changed
-        if (payload.new && payload.new.id === participant?.id) {
-          setParticipant(prev => prev ? { ...prev, total_score: payload.new.total_score } : null)
+        const newParticipant = payload.new as Participant
+        if (newParticipant && newParticipant.id === participant?.id) {
+          setParticipant(prev => prev ? { ...prev, total_score: newParticipant.total_score } : null)
         }
         fetchLeaderboard()
       })
