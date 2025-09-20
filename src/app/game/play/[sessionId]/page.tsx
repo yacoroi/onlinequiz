@@ -531,6 +531,26 @@ export default function PlayGame({ params }: { params: Promise<{ sessionId: stri
           </div>
         )}
 
+        {/* Late Join - Game Already Started */}
+        {session?.status === 'started' && !currentQuestion && (
+          <div className="text-center">
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md mx-auto">
+              <h2 className="text-2xl font-bold text-orange-600 mb-6">
+                Oyun Başlamış!
+              </h2>
+              <div className="text-black mb-4">
+                <p className="mb-2">Oyuna geç katıldın 🎮</p>
+                <p className="text-sm">Sonraki soruyu bekliyorsun...</p>
+              </div>
+              <div className="animate-pulse bg-orange-100 p-4 rounded-lg">
+                <p className="text-orange-800 font-medium">
+                  Mevcut soru tamamlandığında oyuna katılacaksın
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Active Question */}
         {session?.status === 'started' && currentQuestion && !showLeaderboard && (
           <div className="text-center">

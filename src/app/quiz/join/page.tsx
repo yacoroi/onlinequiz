@@ -46,15 +46,15 @@ export default function JoinGame() {
         throw new Error('Bu PIN kodu ile aktif bir oyun bulunamadı')
       }
 
-      // Waiting durumundaki oturumu bul
-      const session = allSessions.find(s => s.status === 'waiting')
+      // Waiting veya started durumundaki oturumu bul (geç katılıma izin ver)
+      const session = allSessions.find(s => s.status === 'waiting' || s.status === 'started')
       
       if (!session) {
         const sessionStatuses = allSessions.map(s => s.status).join(', ')
-        throw new Error(`Bu PIN kodlu oyun şu anda katılıma açık değil. Durum: ${sessionStatuses}`)
+        throw new Error(`Bu PIN kodlu oyun katılıma açık değil. Durum: ${sessionStatuses}`)
       }
 
-      console.log('Found waiting session:', session)
+      console.log('Found available session:', session)
 
       // Check if user already joined (only for authenticated users)
       if (user) {
@@ -144,6 +144,9 @@ export default function JoinGame() {
             <p className="text-black">
               Host'tan aldığınız PIN kodunu girin
             </p>
+            <p className="text-sm text-gray-600 mt-2">
+              ⚡ Başlamış oyunlara da katılabilirsiniz!
+            </p>
             </div>
 
             {error && (
@@ -215,7 +218,8 @@ export default function JoinGame() {
             <ul className="text-sm space-y-1 opacity-90">
               <li>• Host'tan PIN kodunu alın</li>
               <li>• PIN kodunu girin ve oyuna katılın</li>
-              <li>• Host oyunu başlatmasını bekleyin</li>
+              <li>• Oyun henüz başlamamışsa bekleme odasına gireceksiniz</li>
+              <li>• Oyun başlamışsa sonraki sorudan katılacaksınız</li>
               <li>• Soruları okuyun ve doğru cevabı seçin</li>
               <li>• Hızlı cevap verin ve puanı kaptın!</li>
             </ul>
